@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Art Studio</title>
+    <style>
+        /* Basic styles for the body and canvas */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            color: white; 
+            font-family: 'Inter', sans-serif; /* Using Inter font */
+            touch-action: none; /* Prevent default touch actions like scrolling */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        canvas { 
+            display: block; 
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Info overlay for initial instructions */
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 15px;
+            border-radius: 8px; /* Rounded corners */
+            font-size: 14px;
+            pointer-events: none; /* Allow clicks to pass through */
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        /* Main control panel styling */
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(145deg, rgba(20,20,20,0.95), rgba(40,40,40,0.95)); /* Gradient background */
+            padding: 15px 20px;
+            border-radius: 12px; /* More rounded corners */
+            color: white;
+            font-size: 14px;
+            width: 280px; /* Slightly wider */
+            max-height: 95vh; /* Adjust max height */
+            overflow-y: auto; /* Scroll for many controls */
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+            z-index: 100;
+            border: 1px solid rgba(255,255,255,0.1); /* Subtle border */
+        }
+        /* Collapsed state for the control panel */
+        .control-panel.collapsed {
+            transform: translateX(calc(100% - 45px)); /* Hide most of the panel */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        /* Header for the control panel */
+        .control-panel h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            color: #a0a0ff; /* Accent color */
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+        /* Toggle button for collapsing the panel */
+        .toggle-controls {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px; /* Larger icon */
+            cursor: pointer;
+            padding: 0 5px;
+            transition: transform 0.2s ease;
+            line-height: 1; /* Align icon vertically */
+        }
+        .toggle-controls:hover {
+            transform: scale(1.1);
+        }
+        .control-panel button {
+            margin-top: 12px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s ease, transform 0.1s ease;
+            background: linear-gradient(180deg, #6a5acd, #483d8b); /* Purple gradient */
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            width: 100%; /* Full width buttons */
+        }
+        .control-panel button:hover {
+            background: linear-gradient(180deg, #7b68ee, #5a4b9c);
+            transform: translateY(-1px);
+        }
+        .control-panel button:active {
+            transform: translateY(1px);
+            box-shadow: none;
+        }
+        .control-panel button.active-mode {
+            background: linear-gradient(180deg, #32cd32, #228b22); /* Green for active mode */
+        }
+
+        /* Slider container styling */
+        .slider-container {
+            margin: 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed rgba(255,255,255,0.05); /* Subtle separator */
+        }
+        .slider-container:last-of-type {
+            border-bottom: none; /* No border for the last one */
+        }
+        .slider-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #c0c0c0;
+        }
+        input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none; /* Remove default styling */
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            outline: none;
+            transition: background 0.2s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #8a2be2; /* Blue-violet thumb */
+            cursor: grab;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            transition: background 0.2s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:active {
+            cursor: grabbing;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #8a2be2;
+            cursor: grab;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            transition: background 0.2s ease;
+        }
+        input[type="range"]::-moz-range-thumb:active {
+            cursor: grabbing;
+        }
+
+        /* Select dropdown styling */
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+            appearance: none; /* Remove default arrow */
+            -webkit-appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20d%3D%22M287%2C197.3L159.3%2C69.6c-3.8-3.8-10.1-3.8-13.9%2C0L5.3%2C197.3c-3.8%2C3.8-3.8%2C10.1%2C0%2C13.9l13.9%2C13.9c3.8%2C3.8%2C10.1%2C3.8%2C13.9%2C0L146.5%2C128.5c3.8-3.8%2C10.1-3.8%2C13.9%2C0l113.4%2C113.4c3.8%2C3.8%2C10.1%2C3.8%2C13.9%2C0l13.9-13.9C290.8%2C207.4%2C290.8%2C201.1%2C287%2C197.3z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 8px top 50%;
+            background-size: 12px auto;
+        }
+        select option {
+            background: #222;
+            color: white;
+        }
+
+        /* Checkbox styling */
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            color: #c0c0c0;
+        }
+        .checkbox-container input[type="checkbox"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #8a2be2;
+            border-radius: 4px;
+            margin-right: 10px;
+            cursor: pointer;
+            position: relative;
+            outline: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        .checkbox-container input[type="checkbox"]:checked {
+            background-color: #8a2be2;
+            border-color: #8a2be2;
+        }
+        .checkbox-container input[type="checkbox"]:checked::after {
+            content: '✔';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+        }
+
+        /* Section headers within the control panel */
+        .control-section h4 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #a0a0ff;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 5px;
+        }
+
+        /* Drawing canvas overlay */
+        #drawingCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 50; /* Above Three.js canvas, below UI */
+            pointer-events: none; /* Initially allow clicks to pass through */
+        }
+
+        /* Loading Spinner */
+        #loadingSpinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #8a2be2;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: none; /* Hidden by default */
+            z-index: 101;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .control-panel {
+                width: 90%;
+                right: 5%;
+                padding: 10px 15px;
+                font-size: 12px;
+                max-height: 85vh;
+            }
+            .control-panel.collapsed {
+                transform: translateX(calc(100% - 40px));
+            }
+            #info {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+            .control-panel h3 {
+                font-size: 16px;
+            }
+            .toggle-controls {
+                font-size: 20px;
+            }
+            .control-panel button {
+                padding: 8px 12px;
+            }
+            .slider-container label {
+                font-size: 12px;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="info">Click on the screen to spawn objects. Click an object to select it. Use the sliders to manipulate it. Switch to Play Mode to control the selected object with WASD.</div>
+    
+    <div class="control-panel">
+        <h3>
+            Studio Controls
+            <button class="toggle-controls" title="Toggle controls">≡</button>
+        </h3>
+
+        <div class="control-section">
+            <h4>Modes</h4>
+            <button id="toggleManipulationMode" class="active-mode">Manipulation Mode</button>
+            <button id="toggleDrawingMode">Drawing Mode</button>
+            <button id="togglePlayMode">Play Mode</button>
+        </div>
+
+        <div class="control-section" id="sceneControls">
+            <h4>Scene Parameters</h4>
+            <div class="slider-container">
+                <label for="gravity">Gravity Strength</label>
+                <input type="range" id="gravity" min="0" max="50" step="0.5" value="9.8">
+            </div>
+            <div class="slider-container">
+                <label for="colorMode">Color Mode</label>
+                <select id="colorMode">
+                    <option value="random">Random</option>
+                    <option value="gradient">Gradient</option>
+                    <option value="distance">Distance-based</option>
+                </select>
+            </div>
+            <div class="slider-container">
+                <label for="objectType">Spawn Object Type</label>
+                <select id="objectType">
+                    <option value="square">Square</option>
+                    <option value="triangle">Triangle</option>
+                    <option value="orb">Orb</option>
+                    <option value="plane">Plane</option>
+                    <option value="star">Star</option>
+                    <option value="gltf_cat">Cat (Placeholder)</option>
+                    <option value="gltf_dog">Dog (Placeholder)</option>
+                    <option value="gltf_balloon">Balloon (Placeholder)</option>
+                    <option value="gltf_person">Person (Placeholder)</option>
+                </select>
+            </div>
+            <div class="slider-container">
+                <label for="objectSize">Spawn Object Size</label>
+                <input type="range" id="objectSize" min="0.5" max="5" step="0.1" value="1">
+            </div>
+            <div class="checkbox-container">
+                <input type="checkbox" id="strangePhysics">
+                <label for="strangePhysics">Strange Physics</label>
+            </div>
+            <button id="spawnInitialObjectsBtn">Spawn Initial Objects</button>
+            <button id="explodeBtn">Explode Structure</button>
+            <button id="connectAllToCentralAnchorBtn">Connect All to Central Anchor</button> 
+            <button id="resetBtn">Reset Scene</button>
+        </div>
+
+        <div class="control-section" id="objectManipulationControls" style="display: none;">
+            <h4>Selected Object Properties</h4>
+            <div class="slider-container">
+                <label for="objPosX">Position X</label>
+                <input type="range" id="objPosX" min="-100" max="100" step="0.1" value="0">
+            </div>
+            <div class="slider-container">
+                <label for="objPosY">Position Y</label>
+                <input type="range" id="objPosY" min="-100" max="100" step="0.1" value="0">
+            </div>
+            <div class="slider-container">
+                <label for="objPosZ">Position Z</label>
+                <input type="range" id="objPosZ" min="-100" max="100" step="0.1" value="0">
+            </div>
+            <div class="slider-container">
+                <label for="objScaleX">Scale Width (X)</label>
+                <input type="range" id="objScaleX" min="0.1" max="10" step="0.1" value="1">
+            </div>
+            <div class="slider-container">
+                <label for="objScaleY">Scale Height (Y)</label>
+                <input type="range" id="objScaleY" min="0.1" max="10" step="0.1" value="1">
+            </div>
+            <div class="slider-container">
+                <label for="objScaleZ">Scale Depth (Z)</label>
+                <input type="range" id="objScaleZ" min="0.1" max="10" step="0.1" value="1">
+            </div>
+            <div class="slider-container">
+                <label for="randomizeProperties">Randomize Scale</label>
+                <input type="range" id="randomizeProperties" min="0" max="1" step="0.01" value="0">
+            </div>
+            <button id="setTranslateMode">Set Translate Mode</button>
+            <button id="setScaleMode">Set Scale Mode</button>
+            <button id="connectObjectsBtn">Connect Selected to Nearest</button>
+        </div>
+
+        <div class="control-section" id="drawingTools" style="display: none;">
+            <h4>Drawing Tools</h4>
+            <div class="slider-container">
+                <label for="extrudeDepth">Extrusion Depth</label>
+                <input type="range" id="extrudeDepth" min="0.5" max="10" step="0.1" value="2">
+            </div>
+            <div class="slider-container">
+                <label for="simplifyTolerance">Drawing Simplify Tolerance</label>
+                <input type="range" id="simplifyTolerance" min="0" max="10" step="0.1" value="1">
+            </div>
+            <button id="undoDrawing">Undo Draw</button>
+            <button id="redoDrawing">Redo Draw</button>
+            <button id="clearDrawing">Clear Drawing</button>
+            <button id="createFromDrawing">Create 3D from Drawing</button>
+            <button id="createOrbsFromDrawing">Create Orbs from Drawing</button> </div>
+
+        <div class="control-section" id="playModeControls" style="display: none;">
+            <h4>Play Mode</h4>
+            <p>Use WASD to move the selected object.</p>
+            <p>W: Forward, S: Backward, A: Left, D: Right</p>
+            <p>Select an object in Manipulation Mode first, then switch to Play Mode.</p>
+        </div>
+    </div>
+
+    <canvas id="drawingCanvas"></canvas>
+    <div id="loadingSpinner"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script type="module">
+        // Import Cannon-ES Physics Library (still as a module)
+        import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
+
+        // --- Global Variables and Constants ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.002); // Atmospheric fog
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(0, 50, 100); // Initial camera position
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // Enable shadows
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+        document.body.appendChild(renderer.domElement);
+
+        const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.8, 0) }); // Cannon.js physics world
+        world.broadphase = new CANNON.NaiveBroadphase(); // Simple broadphase for collision detection
+        world.solver.iterations = 20; // Number of iterations for the solver
+
+        // Physics materials
+        const defaultMaterial = new CANNON.Material("defaultMaterial");
+        const defaultContactMaterial = new CANNON.ContactMaterial(
+            defaultMaterial,
+            defaultMaterial,
+            {
+                friction: 0.1,
+                restitution: 0.3 // Bounciness
+            }
+        );
+        world.addContactMaterial(defaultContactMaterial);
+        world.defaultContactMaterial = defaultContactMaterial;
+
+        // --- Scene Elements (Ground, Lights) ---
+
+        // Ground Plane (Three.js)
+        const groundGeo = new THREE.PlaneGeometry(2000, 2000, 50, 50);
+        const groundMat = new THREE.MeshStandardMaterial({ 
+            color: 0x222222,
+            roughness: 0.8,
+            metalness: 0.2,
+            wireframe: false
+        });
+        const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.position.y = -20;
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+
+        // Ground Body (Cannon-ES)
+        const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: defaultMaterial });
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Rotate to align with Three.js ground
+        groundBody.position.y = -20;
+        world.addBody(groundBody);
+        
+        // Grid Helper
+        const grid = new THREE.GridHelper(200, 20, 0x555555, 0x222222);
+        grid.position.y = -19.9; // Slightly above the ground
+        scene.add(grid);
+
+        // Lighting
+        scene.add(new THREE.AmbientLight(0x404040, 1.5)); // Soft ambient light
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); // Main directional light
+        directionalLight.position.set(100, 200, 100);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 500;
+        directionalLight.shadow.camera.left = -100;
+        directionalLight.shadow.camera.right = 100;
+        directionalLight.shadow.camera.top = 100;
+        directionalLight.shadow.camera.bottom = -100;
+        scene.add(directionalLight);
+
+        // --- Core Application State & Parameters ---
+        const objects = []; // Array to hold all active objects ({mesh, body})
+        const constraints = []; // Store constraints for removal
+
+        const params = {
+            gravity: 9.8,
+            colorMode: 'random',
+            explodeForce: 500, 
+            objectSize: 1,
+            strangePhysics: false,
+            selectedObject: 'square', // Default spawn type
+            extrudeDepth: 2, 
+            simplifyTolerance: 1 
+        };
+
+        let isManipulationMode = true; 
+        let isDrawingMode = false;
+        let isPlayMode = false; 
+
+        let selectedObject = null; // Currently selected object for manipulation
+        let transformControls; // Three.js gizmos for manipulation
+
+        const gltfLoader = new THREE.GLTFLoader(); 
+        const loadingSpinner = document.getElementById('loadingSpinner');
+
+        // Keyboard state for Play Mode
+        const keyboard = {};
+
+        /**
+         * Shows or hides the loading spinner.
+         * @param {boolean} show - True to show, false to hide.
+         */
+        function toggleLoadingSpinner(show) {
+            loadingSpinner.style.display = show ? 'block' : 'none';
+        }
+
+        // --- Drawing Canvas Setup ---
+        const drawingCanvas = document.getElementById('drawingCanvas');
+        const drawingCtx = drawingCanvas.getContext('2d');
+        drawingCanvas.width = window.innerWidth;
+        drawingCanvas.height = window.innerHeight;
+        drawingCtx.strokeStyle = '#8a2be2'; 
+        drawingCtx.lineWidth = 5;
+        drawingCtx.lineJoin = 'round';
+        drawingCtx.lineCap = 'round';
+
+        let isDrawing = false;
+        let drawingPoints = []; 
+        let drawingStrokes = []; 
+        let undoneStrokes = []; 
+
+        /**
+         * Redraws all strokes on the 2D drawing canvas.
+         */
+        function redrawDrawingCanvas() {
+            drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            drawingStrokes.forEach(stroke => {
+                if (stroke.length > 1) {
+                    drawingCtx.beginPath();
+                    drawingCtx.moveTo(stroke[0].x, stroke[0].y);
+                    for (let i = 1; i < stroke.length; i++) {
+                        drawingCtx.lineTo(stroke[i].x, stroke[i].y);
+                    }
+                    drawingCtx.stroke();
+                    drawingCtx.closePath();
+                }
+            });
+        }
+        
+        // --- Helper Functions ---
+
+        /**
+         * Generates a color based on the selected color mode.
+         * @param {string} mode - 'random', 'gradient', or 'distance'.
+         * @param {number} index - Index of the object (for gradient).
+         * @param {number} distance - Distance from center (for distance-based color).
+         * @returns {THREE.Color} The generated color.
+         */
+        function getColorByMode(mode, index, distance) {
+            switch(mode) {
+                case 'gradient':
+                    return new THREE.Color().setHSL((index * 0.1) % 1, 0.7, 0.5);
+                case 'distance':
+                    // Normalize distance to a 0-1 range for HSL hue
+                    const hue = Math.min(distance / 100, 1);
+                    return new THREE.Color().setHSL(hue, 0.7, 0.5);
+                case 'random':
+                default:
+                    return new THREE.Color(Math.random() * 0xffffff);
+            }
+        }
+
+        /**
+         * Simplifies a 2D path using a basic distance-based algorithm.
+         * @param {Array<THREE.Vector2>} points - Array of 2D points.
+         * @param {number} tolerance - The maximum distance a point can be from the simplified line segment.
+         * @returns {Array<THREE.Vector2>} Simplified array of 2D points.
+         */
+        function simplifyDrawing(points, tolerance) {
+            if (points.length < 3 || tolerance <= 0) {
+                return [...points]; // Return original if too few points or no simplification
+            }
+
+            const simplified = [points[0]]; // Start with the first point
+            let lastPoint = points[0];
+
+            for (let i = 1; i < points.length; i++) {
+                const currentPoint = points[i];
+                const dx = currentPoint.x - lastPoint.x;
+                const dy = currentPoint.y - lastPoint.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance > tolerance) {
+                    simplified.push(currentPoint);
+                    lastPoint = currentPoint;
+                }
+            }
+            // Always add the last point to ensure the shape closes or ends correctly
+            if (simplified[simplified.length - 1] !== points[points.length - 1]) {
+                simplified.push(points[points.length - 1]);
+            }
+            return simplified;
+        }
+
+        /**
+         * Sets the currently selected object and attaches TransformControls.
+         * @param {object | null} obj - The object to select, or null to deselect.
+         */
+        function setSelectedObject(obj) {
+            if (selectedObject && transformControls) {
+                transformControls.detach(); // Detach from previous object
+                selectedObject.mesh.traverse(child => { // Remove outline/glow from previous object
+                    if (child.isMesh && child.material.userData.originalEmissive) {
+                        child.material.emissive.copy(child.material.userData.originalEmissive);
+                        child.material.emissiveIntensity = child.material.userData.originalEmissiveIntensity;
+                    }
+                });
+            }
+
+            selectedObject = obj;
+
+            if (selectedObject) {
+                // Initialize TransformControls if not already
+                if (!transformControls) {
+                    transformControls = new THREE.TransformControls(camera, renderer.domElement);
+                    transformControls.addEventListener('dragging-changed', function (event) {
+                        // Pause camera orbit when dragging, but only if not in Play Mode
+                        if (!isPlayMode) {
+                            orbitControls.enabled = !event.value; 
+                        }
+                        // Disable physics for the selected object while dragging
+                        if (selectedObject && selectedObject.body) {
+                            selectedObject.body.type = event.value ? CANNON.Body.STATIC : CANNON.Body.DYNAMIC;
+                        }
+                    });
+                    // Handle scaling specifically to update physics body
+                    transformControls.addEventListener('objectChange', function () {
+                        if (transformControls.mode === 'scale' && selectedObject && selectedObject.body) {
+                            // Re-create physics body as a bounding box for scaled meshes
+                            const mesh = selectedObject.mesh;
+                            const bbox = new THREE.Box3().setFromObject(mesh);
+                            const sizeVector = new THREE.Vector3();
+                            bbox.getSize(sizeVector);
+                            
+                            // Remove old body, create new one with updated scale
+                            world.removeBody(selectedObject.body);
+                            // Ensure halfExtents are positive
+                            const newShape = new CANNON.Box(new CANNON.Vec3(
+                                Math.max(0.1, sizeVector.x / 2),
+                                Math.max(0.1, sizeVector.y / 2),
+                                Math.max(0.1, sizeVector.z / 2)
+                            ));
+                            const newBody = new CANNON.Body({ mass: selectedObject.body.mass, shape: newShape, material: defaultMaterial });
+                            newBody.position.copy(mesh.position);
+                            newBody.quaternion.copy(mesh.quaternion);
+                            newBody.velocity.set(0,0,0); // Reset velocity on scale change
+                            newBody.angularVelocity.set(0,0,0); // Reset angular velocity
+                            world.addBody(newBody);
+                            selectedObject.body = newBody; // Update reference
+                        }
+                    });
+                    scene.add(transformControls);
+                }
+                transformControls.attach(selectedObject.mesh);
+                transformControls.setMode('translate'); // Default to translate mode
+
+                // Add a visual highlight (e.g., emissive glow)
+                selectedObject.mesh.traverse(child => {
+                    if (child.isMesh) {
+                        if (!child.material.userData.originalEmissive) { // Store original emissive
+                            child.material.userData.originalEmissive = child.material.emissive.clone();
+                            child.material.userData.originalEmissiveIntensity = child.material.emissiveIntensity;
+                        }
+                        child.material.emissive.set(0x00ff00); // Green highlight
+                        child.material.emissiveIntensity = 1.0;
+                    }
+                });
+
+                // Update UI sliders for selected object's position and scale
+                document.getElementById('objPosX').value = selectedObject.mesh.position.x;
+                document.getElementById('objPosY').value = selectedObject.mesh.position.y;
+                document.getElementById('objPosZ').value = selectedObject.mesh.position.z;
+                document.getElementById('objScaleX').value = selectedObject.mesh.scale.x;
+                document.getElementById('objScaleY').value = selectedObject.mesh.scale.y;
+                document.getElementById('objScaleZ').value = selectedObject.mesh.scale.z;
+                document.getElementById('randomizeProperties').value = 0; // Reset random slider on new selection
+
+
+                // Show object manipulation controls
+                document.getElementById('objectManipulationControls').style.display = 'block';
+            } else {
+                // Hide object manipulation controls
+                document.getElementById('objectManipulationControls').style.display = 'none';
+                if (transformControls) {
+                    transformControls.detach();
+                }
+            }
+        }
+
+        /**
+         * Object presets for spawning. Includes Three.js mesh creation and Cannon-ES shape.
+         */
+        const objectPresets = {
+            square: {
+                create: (size) => {
+                    const geometry = new THREE.BoxGeometry(3*size, 3*size, 3*size);
+                    const color = getColorByMode(params.colorMode, objects.length, 0);
+                    const material = new THREE.MeshStandardMaterial({ 
+                        color: color,
+                        emissive: color.clone().multiplyScalar(0.5),
+                        emissiveIntensity: 0.5,
+                        roughness: 0.4,
+                        metalness: 0.6
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    return {
+                        mesh,
+                        shape: new CANNON.Box(new CANNON.Vec3(1.5*size, 1.5*size, 1.5*size))
+                    };
+                }
+            },
+            triangle: {
+                create: (size) => {
+                    const geometry = new THREE.ConeGeometry(2*size, 3*size, 3);
+                    const color = getColorByMode(params.colorMode, objects.length, 0);
+                    const material = new THREE.MeshStandardMaterial({ 
+                        color: color,
+                        emissive: color.clone().multiplyScalar(0.5),
+                        emissiveIntensity: 0.5,
+                        roughness: 0.4,
+                        metalness: 0.6
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    return {
+                        mesh,
+                        shape: new CANNON.Cylinder(2*size, 0, 3*size, 3)
+                    };
+                }
+            },
+            orb: {
+                create: (size) => {
+                    const geometry = new THREE.SphereGeometry(2*size, 32, 32);
+                    const color = getColorByMode(params.colorMode, objects.length, 0);
+                    const material = new THREE.MeshStandardMaterial({ 
+                        color: color,
+                        emissive: color.clone().multiplyScalar(0.5),
+                        emissiveIntensity: 0.5,
+                        roughness: 0.4,
+                        metalness: 0.6
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    return {
+                        mesh,
+                        shape: new CANNON.Sphere(2*size)
+                    };
+                }
+            },
+            plane: {
+                create: (size) => {
+                    const geometry = new THREE.PlaneGeometry(4*size, 4*size);
+                    geometry.rotateX(-Math.PI / 2); // Orient horizontally
+                    const color = getColorByMode(params.colorMode, objects.length, 0);
+                    const material = new THREE.MeshStandardMaterial({ 
+                        color: color,
+                        emissive: color.clone().multiplyScalar(0.5),
+                        emissiveIntensity: 0.5,
+                        roughness: 0.4,
+                        metalness: 0.6,
+                        side: THREE.DoubleSide
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    return {
+                        mesh,
+                        shape: new CANNON.Box(new CANNON.Vec3(2*size, 0.1, 2*size)) // Thin box for physics
+                    };
+                }
+            },
+            star: {
+                create: (size) => {
+                    // Create a star shape for Three.js
+                    const starShape = new THREE.Shape();
+                    const spikes = 5;
+                    const outerRadius = 2 * size;
+                    const innerRadius = outerRadius * 0.5;
+                    
+                    starShape.moveTo(outerRadius, 0);
+                    for (let i = 0; i < spikes * 2; i++) {
+                        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                        const angle = (i / spikes) * Math.PI;
+                        starShape.lineTo(
+                            Math.cos(angle) * radius,
+                            Math.sin(angle) * radius
+                        );
+                    }
+                    starShape.lineTo(outerRadius, 0); // Close the shape
+                    
+                    const extrudeSettings = {
+                        steps: 1,
+                        depth: 0.5 * size,
+                        bevelEnabled: true,
+                        bevelThickness: 0.1,
+                        bevelSize: 0.1,
+                        bevelOffset: 0,
+                        bevelSegments: 1
+                    };
+                    
+                    const geometry = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
+                    const color = getColorByMode(params.colorMode, objects.length, 0);
+                    const material = new THREE.MeshStandardMaterial({ 
+                        color: color,
+                        emissive: color.clone().multiplyScalar(0.5),
+                        emissiveIntensity: 0.5,
+                        roughness: 0.4,
+                        metalness: 0.6
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    
+                    // For physics, use a compound shape that approximates the star
+                    const starShapePhysics = new CANNON.Compound();
+                    // Center box
+                    starShapePhysics.addShape(
+                        new CANNON.Box(new CANNON.Vec3(innerRadius * 0.7, 0.25 * size, innerRadius * 0.7))
+                    );
+                    // Spikes (as boxes)
+                    for (let i = 0; i < spikes; i++) {
+                        const angle = (i / spikes) * 2 * Math.PI;
+                        const x = Math.cos(angle) * (outerRadius + innerRadius) / 2;
+                        const z = Math.sin(angle) * (outerRadius + innerRadius) / 2;
+                        
+                        starShapePhysics.addShape(
+                            new CANNON.Box(new CANNON.Vec3(
+                                (outerRadius - innerRadius) / 2,
+                                0.25 * size,
+                                0.2 * size
+                            )),
+                            new CANNON.Vec3(x, 0, z),
+                            new CANNON.Quaternion().setFromAxisAngle(
+                                new CANNON.Vec3(0, 1, 0),
+                                angle
+                            )
+                        );
+                    }
+                    
+                    return {
+                        mesh,
+                        shape: starShapePhysics
+                    };
+                }
+            },
+            // --- Placeholder GLTF Models ---
+            gltf_cat: {
+                create: async (size) => {
+                    toggleLoadingSpinner(true);
+                    const placeholderMesh = new THREE.Mesh(
+                        new THREE.BoxGeometry(3*size, 3*size, 3*size),
+                        new THREE.MeshBasicMaterial({ color: 0x884400, wireframe: true }) // Brown wireframe
+                    );
+                    const placeholderShape = new CANNON.Box(new CANNON.Vec3(1.5*size, 1.5*size, 1.5*size));
+
+                    // --- IMPORTANT: Replace 'https://placehold.co/1x1/000000/FFFFFF?text=' with actual GLTF model URLs ---
+                    // You can find free GLTF models on sites like Sketchfab (filter by downloadable, then GLTF),
+                    // or use KhronosGroup's sample models: https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0
+                    // Example for a simple duck model: 'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/Duck/glTF-Binary/Duck.glb'
+                    const modelUrl = 'https://placehold.co/1x1/000000/FFFFFF?text='; // Placeholder URL
+
+                    try {
+                        const gltf = await gltfLoader.loadAsync(modelUrl);
+                        const model = gltf.scene;
+                        model.scale.set(size * 0.5, size * 0.5, size * 0.5); // Adjust scale
+                        model.traverse((child) => {
+                            if (child.isMesh) {
+                                child.castShadow = true;
+                                child.receiveShadow = true;
+                                // Apply a default material if the model doesn't have one or for consistency
+                                if (!child.material) {
+                                    child.material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+                                }
+                            }
+                        });
+
+                        // Compute bounding box for physics approximation
+                        const bbox = new THREE.Box3().setFromObject(model);
+                        const sizeVector = new THREE.Vector3();
+                        bbox.getSize(sizeVector);
+                        const physicsShape = new CANNON.Box(new CANNON.Vec3(sizeVector.x / 2, sizeVector.y / 2, sizeVector.z / 2));
+                        
+                        toggleLoadingSpinner(false);
+                        return { mesh: model, shape: physicsShape };
+
+                    } catch (error) {
+                        console.error('Error loading cat model:', error);
+                        toggleLoadingSpinner(false);
+                        // Return placeholder if loading fails
+                        return { mesh: placeholderMesh, shape: placeholderShape };
+                    }
+                }
+            },
+            gltf_dog: {
+                create: async (size) => {
+                    toggleLoadingSpinner(true);
+                    const placeholderMesh = new THREE.Mesh(
+                        new THREE.BoxGeometry(3*size, 3*size, 3*size),
+                        new THREE.MeshBasicMaterial({ color: 0x8B4513, wireframe: true }) // SaddleBrown wireframe
+                    );
+                    const placeholderShape = new CANNON.Box(new CANNON.Vec3(1.5*size, 1.5*size, 1.5*size));
+                    const modelUrl = 'https://placehold.co/1x1/000000/FFFFFF?text='; // Placeholder URL
+                    try {
+                        const gltf = await gltfLoader.loadAsync(modelUrl);
+                        const model = gltf.scene;
+                        model.scale.set(size * 0.5, size * 0.5, size * 0.5);
+                        model.traverse((child) => {
+                            if (child.isMesh) {
+                                child.castShadow = true;
+                                child.receiveShadow = true;
+                                if (!child.material) {
+                                    child.material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+                                }
+                            }
+                        });
+                        const bbox = new THREE.Box3().setFromObject(model);
+                        const sizeVector = new THREE.Vector3();
+                        bbox.getSize(sizeVector);
+                        const physicsShape = new CANNON.Box(new CANNON.Vec3(sizeVector.x / 2, sizeVector.y / 2, sizeVector.z / 2));
+                        toggleLoadingSpinner(false);
+                        return { mesh: model, shape: physicsShape };
+                    } catch (error) {
+                        console.error('Error loading dog model:', error);
+                        toggleLoadingSpinner(false);
+                        return { mesh: placeholderMesh, shape: placeholderShape };
+                    }
+                }
+            },
+            gltf_balloon: {
+                create: async (size) => {
+                    toggleLoadingSpinner(true);
+                    const placeholderMesh = new THREE.Mesh(
+                        new THREE.SphereGeometry(2*size, 16, 16),
+                        new THREE.MeshBasicMaterial({ color: 0xFF6347, wireframe: true }) // Tomato wireframe
+                    );
+                    const placeholderShape = new CANNON.Sphere(2*size);
+                    const modelUrl = 'https://placehold.co/1x1/000000/FFFFFF?text='; // Placeholder URL
+                    try {
+                        const gltf = await gltfLoader.loadAsync(modelUrl);
+                        const model = gltf.scene;
+                        model.scale.set(size * 0.5, size * 0.5, size * 0.5);
+                        model.traverse((child) => {
+                            if (child.isMesh) {
+                                child.castShadow = true;
+                                child.receiveShadow = true;
+                                if (!child.material) {
+                                    child.material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+                                }
+                            }
+                        });
+                        const bbox = new THREE.Box3().setFromObject(model);
+                        const sizeVector = new THREE.Vector3();
+                        bbox.getSize(sizeVector);
+                        const physicsShape = new CANNON.Sphere(Math.max(sizeVector.x, sizeVector.y, sizeVector.z) / 2); // Sphere for balloon
+                        toggleLoadingSpinner(false);
+                        return { mesh: model, shape: physicsShape };
+                    } catch (error) {
+                        console.error('Error loading balloon model:', error);
+                        toggleLoadingSpinner(false);
+                        return { mesh: placeholderMesh, shape: placeholderShape };
+                    }
+                }
+            },
+            gltf_person: {
+                create: async (size) => {
+                    toggleLoadingSpinner(true);
+                    const placeholderMesh = new THREE.Mesh(
+                        new THREE.CapsuleGeometry(1*size, 3*size, 4, 8),
+                        new THREE.MeshBasicMaterial({ color: 0x4682B4, wireframe: true }) // SteelBlue wireframe
+                    );
+                    const placeholderShape = new CANNON.Box(new CANNON.Vec3(1*size, 2*size, 1*size)); // Approximate as box
+                    const modelUrl = 'https://placehold.co/1x1/000000/FFFFFF?text='; // Placeholder URL
+                    try {
+                        const gltf = await gltfLoader.loadAsync(modelUrl);
+                        const model = gltf.scene;
+                        model.scale.set(size * 0.5, size * 0.5, size * 0.5);
+                        model.traverse((child) => {
+                            if (child.isMesh) {
+                                child.castShadow = true;
+                                child.receiveShadow = true;
+                                if (!child.material) {
+                                    child.material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+                                }
+                            }
+                        });
+                        const bbox = new THREE.Box3().setFromObject(model);
+                        const sizeVector = new THREE.Vector3();
+                        bbox.getSize(sizeVector);
+                        const physicsShape = new CANNON.Box(new CANNON.Vec3(sizeVector.x / 2, sizeVector.y / 2, sizeVector.z / 2));
+                        toggleLoadingSpinner(false);
+                        return { mesh: model, shape: physicsShape };
+                    } catch (error) {
+                        console.error('Error loading person model:', error);
+                        toggleLoadingSpinner(false);
+                        return { mesh: placeholderMesh, shape: placeholderShape };
+                    }
+                }
+            }
+        };
+
+        /**
+         * Creates a new 3D object and adds it to the scene and physics world.
+         * @param {number} x - X position.
+         * @param {number} y - Y position.
+         * @param {number} z - Z position.
+         * @param {string} type - Type of object to create (e.g., 'square', 'orb').
+         * @param {number} size - Size multiplier for the object.
+         * @returns {object} The created object {mesh, body}.
+         */
+        async function createObject(x, y, z, type, size) {
+            const preset = objectPresets[type] || objectPresets.square; // Default to square
+            
+            const { mesh, shape } = await preset.create(size); // Await creation for GLTF models
+            mesh.position.set(x, y, z);
+            // Ensure mesh is added to the scene only after it's ready (especially for async GLTF)
+            scene.add(mesh);
+
+            let mass = (type.startsWith('gltf_')) ? 50 : (Math.random() * 5 + 2); // Heavier for GLTF models
+            
+            if (params.strangePhysics) {
+                mass = Math.random() * 50 + 5; // Heavier objects for strange physics
+                // Scale physics shape for strange physics (if applicable, otherwise default)
+                if (shape instanceof CANNON.Sphere) shape.radius *= 1.5;
+                if (shape instanceof CANNON.Box) shape.halfExtents.scale(1.5, new CANNON.Vec3());
+            }
+            
+            const body = new CANNON.Body({ mass, shape, material: defaultMaterial });
+            body.position.copy(mesh.position);
+            
+            // Apply initial velocity
+            if (params.strangePhysics) {
+                body.velocity.set(
+                    (Math.random()-0.5)*50, 
+                    (Math.random()-0.5)*50, 
+                    (Math.random()-0.5)*50
+                );
+                body.angularVelocity.set(
+                    Math.random()*10,
+                    Math.random()*10,
+                    Math.random()*10
+                );
+            } else {
+                body.velocity.set(
+                    (Math.random()-0.5)*20, 
+                    (Math.random()-0.5)*20, 
+                    (Math.random()-0.5)*20
+                );
+            }
+            
+            world.addBody(body);
+            
+            const newObject = { mesh, body }; 
+            objects.push(newObject);
+            
+            return newObject;
+        }
+
+        /**
+         * Creates initial set of objects in the scene.
+         */
+        async function createInitialObjects() {
+            // Clear existing objects first to ensure a fresh set
+            resetScene(); 
+            const NUM_OBJECTS = 20;
+            for (let i = 0; i < NUM_OBJECTS; i++) {
+                // Use a standard object type for initial spawn to avoid GLTF loading on startup
+                await createObject(
+                    (Math.random()-0.5)*100, // Random X
+                    Math.random() * 60 + 20, // Random Y (above ground)
+                    (Math.random()-0.5)*100, // Random Z
+                    'square', // Always start with squares for initial objects
+                    params.objectSize // Use current selected size
+                );
+            }
+        }
+
+        /**
+         * Applies an outward force to all objects, simulating an explosion.
+         */
+        function explodeStructure() {
+            // Apply outward forces to all objects
+            objects.forEach(obj => { 
+                const direction = new CANNON.Vec3().copy(obj.body.position).unit();
+                const force = direction.scale(params.explodeForce * obj.body.mass);
+                obj.body.applyImpulse(force, obj.body.position);
+            });
+        }
+
+        /**
+         * Resets the entire scene, removing all objects and creating new ones.
+         */
+        async function resetScene() {
+            // Deselect any object
+            setSelectedObject(null);
+
+            // Remove all objects from scene and world
+            objects.forEach(obj => { 
+                scene.remove(obj.mesh);
+                world.removeBody(obj.body);
+            });
+            
+            objects.length = 0;
+            
+            // Remove all constraints
+            while(world.constraints.length > 0) {
+                const constraint = world.constraints[0];
+                if (constraint.userData && constraint.userData.line) {
+                    scene.remove(constraint.userData.line); // Remove visual line
+                }
+                world.removeConstraint(constraint);
+            }
+            constraints.length = 0; // Clear the constraints array
+
+            // Clear drawing history
+            drawingStrokes = [];
+            undoneStrokes = [];
+            redrawDrawingCanvas();
+
+            // No initial objects on reset for a blank canvas
+        }
+
+        /**
+         * Converts 2D drawing points to a 3D extruded shape and adds it to the scene.
+         */
+        async function create3DFromDrawing() {
+            // Simplify drawing points to reduce mesh complexity
+            const simplifiedPoints = simplifyDrawing(drawingPoints, params.simplifyTolerance);
+
+            if (simplifiedPoints.length < 3) { // Need at least 3 points for a meaningful shape
+                console.warn("Not enough simplified points to create a 3D shape. Draw more or reduce tolerance!");
+                // Optionally show a message to the user
+                return;
+            }
+
+            // Project 2D screen points to a 3D plane in front of the camera
+            // We'll project onto a plane that is 50 units in front of the camera, parallel to the screen
+            const planeDistance = 50; 
+            const projectedPoints = simplifiedPoints.map(p => {
+                const vec = new THREE.Vector3(
+                    (p.x / window.innerWidth) * 2 - 1,
+                    -(p.y / window.innerHeight) * 2 + 1,
+                    0.5 // Z-coordinate in NDC, used for unprojection
+                );
+                vec.unproject(camera); // Unproject to world space
+                
+                // Now, project this world point onto a plane at `planeDistance` from camera
+                const dir = vec.sub(camera.position).normalize();
+                const worldPoint = camera.position.clone().add(dir.multiplyScalar(planeDistance));
+                
+                // We need 2D points for THREE.Shape, so flatten to XZ or XY depending on desired orientation
+                // Let's use XY for shape, as it's more intuitive for drawing on screen
+                return new THREE.Vector2(worldPoint.x, worldPoint.y); 
+            });
+
+            const shape = new THREE.Shape();
+            shape.moveTo(projectedPoints[0].x, projectedPoints[0].y);
+            for (let i = 1; i < projectedPoints.length; i++) {
+                shape.lineTo(projectedPoints[i].x, projectedPoints[i].y);
+            }
+
+            const extrudeSettings = {
+                steps: 1,
+                depth: params.extrudeDepth,
+                bevelEnabled: true,
+                bevelThickness: 0.1,
+                bevelSize: 0.1,
+                bevelOffset: 0,
+                bevelSegments: 1 // Reduced segments for performance
+            };
+
+            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            geometry.computeBoundingBox(); // Important for centering and physics
+            
+            // Center the geometry's origin to its bounding box center
+            geometry.translate(
+                -(geometry.boundingBox.max.x + geometry.boundingBox.min.x) / 2,
+                -(geometry.boundingBox.max.y + geometry.boundingBox.min.y) / 2,
+                -(geometry.boundingBox.max.z + geometry.boundingBox.min.z) / 2
+            );
+
+            const color = getColorByMode(params.colorMode, objects.length, 0);
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                emissive: color.clone().multiplyScalar(0.5),
+                emissiveIntensity: 0.5,
+                roughness: 0.4,
+                metalness: 0.6
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            // Position the mesh at the average of the projected points, but adjusted for the extrusion depth
+            const avgX = projectedPoints.reduce((sum, p) => sum + p.x, 0) / projectedPoints.length;
+            const avgY = projectedPoints.reduce((sum, p) => sum + p.y, 0) / projectedPoints.length;
+            // For Z, use the camera's Z position for the plane, plus half the extrusion depth
+            const avgZ = camera.position.z - planeDistance + (params.extrudeDepth / 2); 
+            
+            mesh.position.set(avgX, avgY, avgZ); // Set the mesh's world position after centering its geometry
+
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            // Create Cannon.js physics body
+            // For complex shapes like extrusions, ConvexPolyhedron is the best option.
+            // It requires vertices and faces.
+            const vertices = [];
+            for (let i = 0; i < geometry.attributes.position.array.length; i += 3) {
+                vertices.push(new CANNON.Vec3(
+                    geometry.attributes.position.array[i],
+                    geometry.attributes.position.array[i + 1],
+                    geometry.attributes.position.array[i + 2]
+                ));
+            }
+            
+            // Extract faces (triangles) from the geometry
+            const faces = [];
+            if (geometry.index) { // Indexed geometry
+                for (let i = 0; i < geometry.index.array.length; i += 3) {
+                    faces.push([
+                        geometry.index.array[i],
+                        geometry.index.array[i + 1],
+                        geometry.index.array[i + 2]
+                    ]);
+                }
+            } else { // Non-indexed geometry
+                for (let i = 0; i < vertices.length / 3; i++) {
+                    faces.push([i * 3, i * 3 + 1, i * 3 + 2]);
+                }
+            }
+
+            // Create ConvexPolyhedron, handling potential errors for invalid shapes
+            let shapeBody;
+            try {
+                shapeBody = new CANNON.ConvexPolyhedron({ vertices, faces });
+            } catch (e) {
+                console.error("Error creating ConvexPolyhedron, falling back to Box shape:", e);
+                // Fallback to a bounding box if ConvexPolyhedron creation fails
+                const size = new THREE.Vector3();
+                geometry.boundingBox.getSize(size);
+                shapeBody = new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2));
+            }
+
+            const body = new CANNON.Body({ mass: 10, shape: shapeBody, material: defaultMaterial });
+            body.position.copy(mesh.position); // Initialize physics body position
+            world.addBody(body);
+
+            objects.push({ mesh, body }); // Add to objects array
+            
+            drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height); // Clear 2D drawing
+            drawingPoints = []; // Reset current drawing points
+            undoneStrokes = []; // Clear redo history after a new drawing
+        }
+
+        /**
+         * Connects two selected objects using a Cannon.js DistanceConstraint.
+         * Finds the nearest object to the currently selected one to create a "sticky node".
+         */
+        function connectSelectedObjects() {
+            if (!selectedObject) {
+                console.warn("No object selected to connect from.");
+                return;
+            }
+
+            let nearestObject = null;
+            let minDistance = Infinity;
+
+            // Search through all other objects (not the selected one)
+            const allOtherObjects = objects.filter(obj => obj !== selectedObject);
+
+            allOtherObjects.forEach(obj => {
+                const distance = selectedObject.mesh.position.distanceTo(obj.mesh.position);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestObject = obj;
+                }
+            });
+
+            // Only snap if within a reasonable distance (e.g., 20 units)
+            const snapDistanceThreshold = 20; 
+            if (nearestObject && minDistance < snapDistanceThreshold) { 
+                // Create a DistanceConstraint between the two bodies
+                // The distance will be the current distance between them.
+                // This allows for "give and leeway" as it maintains a distance, not a rigid point.
+                const constraint = new CANNON.DistanceConstraint(
+                    selectedObject.body,
+                    nearestObject.body,
+                    minDistance // Set the current distance as the constraint distance
+                );
+                world.addConstraint(constraint);
+                constraints.push(constraint); // Store the constraint
+
+                // Add a visual line to represent the connection
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+                const points = [];
+                points.push(selectedObject.mesh.position);
+                points.push(nearestObject.mesh.position);
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const connectionLine = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(connectionLine);
+
+                // Store the line with the constraint for removal if needed
+                constraint.userData = { line: connectionLine };
+                console.log("Objects connected with DistanceConstraint!");
+            } else {
+                console.warn("No nearby object found to connect to within snap distance.");
+            }
+        }
+
+        /**
+         * Connects all objects to a central invisible anchor point using DistanceConstraints.
+         * This creates a more stable, connected structure.
+         */
+        function connectAllToCentralAnchor() {
+            if (objects.length === 0) {
+                console.warn("No objects to connect.");
+                return;
+            }
+
+            // Calculate the average position of all objects to find a suitable central anchor point
+            const avgPosition = new THREE.Vector3();
+            objects.forEach(obj => avgPosition.add(obj.mesh.position));
+            avgPosition.divideScalar(objects.length);
+
+            // Create an invisible, static body for the central anchor
+            const anchorShape = new CANNON.Sphere(0.1); // Very small sphere
+            const anchorBody = new CANNON.Body({ mass: 0, shape: anchorShape }); // Static body
+            anchorBody.position.copy(avgPosition);
+            world.addBody(anchorBody);
+
+            objects.forEach(obj => {
+                // Calculate the distance from the object to the central anchor
+                const distance = obj.mesh.position.distanceTo(avgPosition);
+                
+                // Create a DistanceConstraint between the object and the central anchor
+                const constraint = new CANNON.DistanceConstraint(
+                    obj.body,
+                    anchorBody,
+                    distance, // Use the current distance as the constraint distance
+                    0.1 // Small maxForce for some "give"
+                );
+                world.addConstraint(constraint);
+                constraints.push(constraint); // Store the constraint
+
+                // Add a visual line to represent the connection
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 }); // Yellow lines
+                const points = [];
+                points.push(obj.mesh.position);
+                points.push(avgPosition); // Line to the central anchor
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const connectionLine = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(connectionLine);
+                constraint.userData = { line: connectionLine, anchor: anchorBody }; // Store anchor for potential removal
+            });
+            console.log(`Connected ${objects.length} objects to a central anchor.`);
+        }
+
+        /**
+         * Creates a series of small orbs connected by constraints along the drawn path.
+         */
+        async function createOrbsFromDrawing() {
+            const simplifiedPoints = simplifyDrawing(drawingPoints, params.simplifyTolerance);
+
+            if (simplifiedPoints.length < 2) { // Need at least 2 points to connect orbs
+                console.warn("Not enough simplified points to create orb chain. Draw a longer line!");
+                return;
+            }
+
+            const planeDistance = 50; // Same plane distance as for extruded shapes
+            const orbSize = 1.0; // Fixed size for the orbs in the chain
+            const orbObjects = [];
+
+            for (const p of simplifiedPoints) {
+                const vec = new THREE.Vector3(
+                    (p.x / window.innerWidth) * 2 - 1,
+                    -(p.y / window.innerHeight) * 2 + 1,
+                    0.5
+                );
+                vec.unproject(camera);
+                const dir = vec.sub(camera.position).normalize();
+                const worldPoint = camera.position.clone().add(dir.multiplyScalar(planeDistance));
+
+                const newOrb = await createObject(worldPoint.x, worldPoint.y, worldPoint.z, 'orb', orbSize);
+                orbObjects.push(newOrb);
+            }
+
+            // Connect consecutive orbs with DistanceConstraints
+            for (let i = 0; i < orbObjects.length - 1; i++) {
+                const orbA = orbObjects[i];
+                const orbB = orbObjects[i + 1];
+                const distance = orbA.mesh.position.distanceTo(orbB.mesh.position);
+
+                const constraint = new CANNON.DistanceConstraint(
+                    orbA.body,
+                    orbB.body,
+                    distance,
+                    0.5 // Allow some give
+                );
+                world.addConstraint(constraint);
+                constraints.push(constraint);
+
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 1 }); // Cyan lines
+                const points = [];
+                points.push(orbA.mesh.position);
+                points.push(orbB.mesh.position);
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const connectionLine = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(connectionLine);
+                constraint.userData = { line: connectionLine };
+            }
+
+            drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            drawingPoints = [];
+            undoneStrokes = [];
+            console.log(`Created ${orbObjects.length} orbs connected in a chain.`);
+        }
+
+
+        // --- Interaction Handlers (Mouse & Touch) ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let isDraggingObject = false; 
+        let dragConstraint = null; 
+        let dragAnchorBody = null; // Store the temporary anchor body
+
+        /**
+         * Handles mouse and touch interactions for spawning/selecting objects.
+         * @param {number} clientX - X coordinate of the interaction.
+         * @param {number} clientY - Y coordinate of the interaction.
+         * @param {boolean} isRightClick - True if it's a right-click/long-press.
+         */
+        function handleInteraction(clientX, clientY, isRightClick) {
+            if (isDrawingMode || isPlayMode) return; 
+
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            // If already dragging, and it's a right-click, then release the object
+            if (isDraggingObject && isRightClick) {
+                if (dragConstraint) {
+                    world.removeConstraint(dragConstraint);
+                    world.removeBody(dragAnchorBody); // Remove the temporary anchor body
+                    dragConstraint = null;
+                    dragAnchorBody = null;
+                }
+                isDraggingObject = false;
+                // After dropping, check for nearby objects to snap
+                if (selectedObject) {
+                    connectSelectedObjects(); 
+                }
+                return; // Interaction handled
+            }
+
+            // Check for object selection first (only on left-click or initial right-click)
+            const allSceneObjects = objects.map(o => o.mesh); 
+            const objectIntersects = raycaster.intersectObjects(allSceneObjects, true); 
+
+            if (objectIntersects.length > 0) {
+                // Find the actual object (mesh and body) that was clicked
+                const intersectedMesh = objectIntersects[0].object;
+                let foundObject = objects.find(o => o.mesh === intersectedMesh || (o.mesh.children && o.mesh.children.includes(intersectedMesh)));
+                
+                if (foundObject) {
+                    setSelectedObject(foundObject);
+                    // If it's a right-click, start dragging
+                    if (isRightClick) {
+                        isDraggingObject = true;
+                        // Create a temporary sphere body at the click point to act as the drag anchor
+                        const sphereShape = new CANNON.Sphere(0.1);
+                        dragAnchorBody = new CANNON.Body({ mass: 0, shape: sphereShape }); // Static body
+                        dragAnchorBody.position.copy(objectIntersects[0].point);
+                        world.addBody(dragAnchorBody);
+
+                        // Create a point-to-point constraint between the object and the sphere
+                        dragConstraint = new CANNON.PointToPointConstraint(
+                            foundObject.body,
+                            new CANNON.Vec3().copy(foundObject.body.pointToLocalFrame(objectIntersects[0].point)), // Pivot on object
+                            dragAnchorBody,
+                            new CANNON.Vec3(0,0,0) // Pivot on sphere's center
+                        );
+                        world.addConstraint(dragConstraint);
+                    }
+                } else {
+                    setSelectedObject(null); 
+                }
+            } else {
+                setSelectedObject(null); 
+
+                // If no object selected and it's a left-click, try to spawn on the ground
+                if (!isRightClick) {
+                    const groundIntersects = raycaster.intersectObjects([groundMesh]);
+                    if (groundIntersects.length > 0) {
+                        const point = groundIntersects[0].point;
+                        createObject(point.x, point.y + 10, point.z, params.selectedObject, params.objectSize);
+                    }
+                }
+            }
+        }
+
+        // Mouse events for 3D interaction
+        window.addEventListener('mousedown', (event) => {
+            if (event.target === renderer.domElement) { 
+                if (event.button === 0) { // Left mouse button for spawning/selecting
+                    handleInteraction(event.clientX, event.clientY, false);
+                } else if (event.button === 2) { // Right mouse button for picking up/dropping
+                    event.preventDefault(); // Prevent context menu
+                    handleInteraction(event.clientX, event.clientY, true);
+                }
+            }
+        });
+
+        window.addEventListener('mousemove', (event) => {
+            if (isDraggingObject && dragConstraint && dragAnchorBody) {
+                // Update the position of the anchor body to follow the mouse ray
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                
+                const intersects = raycaster.intersectObjects([groundMesh]); 
+                if (intersects.length > 0) {
+                    dragAnchorBody.position.copy(intersects[0].point);
+                }
+            }
+        });
+
+        window.addEventListener('mouseup', (event) => {
+            // Only release drag if it was a right-click that initiated it
+            if (isDraggingObject && event.button === 2) { 
+                if (dragConstraint) {
+                    world.removeConstraint(dragConstraint);
+                    world.removeBody(dragAnchorBody); 
+                    dragConstraint = null;
+                    dragAnchorBody = null;
+                }
+                isDraggingObject = false;
+                // After dropping, check for nearby objects to snap
+                if (selectedObject) {
+                    connectSelectedObjects(); 
+                }
+            }
+        });
+
+        renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu always
+
+        // Touch events for 3D interaction (long press for drag/drop)
+        let touchTimer;
+        const LONG_PRESS_THRESHOLD = 500; // milliseconds
+
+        window.addEventListener('touchstart', (event) => {
+            if (event.target === renderer.domElement) {
+                event.preventDefault(); // Prevent scrolling/zooming
+                const touch = event.touches[0];
+                // Start a timer for long press
+                touchTimer = setTimeout(() => {
+                    handleInteraction(touch.clientX, touch.clientY, true); // Treat as right-click
+                }, LONG_PRESS_THRESHOLD);
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (event) => {
+            if (touchTimer) {
+                clearTimeout(touchTimer); // Cancel long press if finger moves
+            }
+            if (isDraggingObject && dragConstraint && dragAnchorBody && event.touches.length === 1) {
+                event.preventDefault();
+                const touch = event.touches[0];
+                mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+
+                const intersects = raycaster.intersectObjects([groundMesh]);
+                if (intersects.length > 0) {
+                    dragAnchorBody.position.copy(intersects[0].point);
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', (event) => {
+            if (touchTimer) {
+                clearTimeout(touchTimer); // Clear timer if touch ends before long press
+                // If not dragging, and it was a short tap, treat as left-click
+                if (!isDraggingObject) {
+                    const touch = event.changedTouches[0];
+                    handleInteraction(touch.clientX, touch.clientY, false);
+                }
+            }
+            if (isDraggingObject) { // If dragging, release the object
+                if (dragConstraint) {
+                    world.removeConstraint(dragConstraint);
+                    world.removeBody(dragAnchorBody);
+                    dragConstraint = null;
+                    dragAnchorBody = null;
+                }
+                isDraggingObject = false;
+                if (selectedObject) {
+                    connectSelectedObjects();
+                }
+            }
+        });
+
+
+        // Drawing canvas event listeners
+        drawingCanvas.addEventListener('mousedown', (e) => {
+            if (isDrawingMode) {
+                isDrawing = true;
+                drawingPoints = []; 
+                drawingCtx.beginPath();
+                drawingCtx.moveTo(e.clientX, e.clientY);
+                drawingPoints.push(new THREE.Vector2(e.clientX, e.clientY));
+                undoneStrokes = []; 
+            }
+        });
+
+        drawingCanvas.addEventListener('mousemove', (e) => {
+            if (isDrawingMode && isDrawing) {
+                drawingCtx.lineTo(e.clientX, e.clientY);
+                drawingCtx.stroke();
+                drawingPoints.push(new THREE.Vector2(e.clientX, e.clientY));
+            }
+        });
+
+        drawingCanvas.addEventListener('mouseup', () => {
+            if (isDrawingMode && isDrawing) {
+                isDrawing = false;
+                drawingCtx.closePath();
+                if (drawingPoints.length > 0) {
+                    drawingStrokes.push([...drawingPoints]); 
+                }
+                drawingPoints = []; 
+                redrawDrawingCanvas(); 
+            }
+        });
+
+        drawingCanvas.addEventListener('touchstart', (e) => {
+            if (isDrawingMode) {
+                e.preventDefault(); 
+                isDrawing = true;
+                drawingPoints = [];
+                drawingCtx.beginPath();
+                const touch = e.touches[0];
+                drawingCtx.moveTo(touch.clientX, touch.clientY);
+                drawingPoints.push(new THREE.Vector2(touch.clientX, touch.clientY));
+                undoneStrokes = []; 
+            }
+        }, { passive: false });
+
+        drawingCanvas.addEventListener('touchmove', (e) => {
+            if (isDrawingMode && isDrawing) {
+                e.preventDefault(); 
+                const touch = e.touches[0];
+                drawingCtx.lineTo(touch.clientX, touch.clientY);
+                drawingCtx.stroke();
+                drawingPoints.push(new THREE.Vector2(touch.clientX, touch.clientY));
+            }
+        }, { passive: false });
+
+        drawingCanvas.addEventListener('touchend', () => {
+            if (isDrawingMode && isDrawing) {
+                isDrawing = false;
+                drawingCtx.closePath();
+                if (drawingPoints.length > 0) {
+                    drawingStrokes.push([...drawingPoints]);
+                }
+                drawingPoints = [];
+                redrawDrawingCanvas();
+            }
+        });
+
+        // --- Camera Orbit Controls (Manual) ---
+        const orbitControls = {
+            enabled: true, 
+            target: new THREE.Vector3(0, 0, 0), 
+            rotationSpeed: 0.05,
+            autoRotate: false, 
+            autoRotateSpeed: 0.05, 
+            radius: 150, 
+            theta: Math.PI / 2, 
+            phi: Math.PI / 4 
+        };
+
+        let isDraggingCamera = false;
+        let previousMouseX = 0;
+        let previousMouseY = 0;
+
+        renderer.domElement.addEventListener('mousedown', (e) => {
+            // Only allow camera drag with middle mouse button or right mouse button if not dragging an object
+            if (!orbitControls.enabled || isPlayMode || isDraggingObject) return; 
+            if (e.button === 1 || (e.button === 2 && !isDraggingObject)) { 
+                isDraggingCamera = true;
+                previousMouseX = e.clientX;
+                previousMouseY = e.clientY;
+                e.preventDefault(); 
+            }
+        });
+
+        renderer.domElement.addEventListener('mousemove', (e) => {
+            if (!orbitControls.enabled || isPlayMode || isDraggingObject) return;
+            if (isDraggingCamera) {
+                const deltaX = e.clientX - previousMouseX;
+                const deltaY = e.clientY - previousMouseY;
+
+                orbitControls.theta -= deltaX * 0.005;
+                orbitControls.phi += deltaY * 0.005;
+
+                // Clamp phi to prevent camera going upside down
+                orbitControls.phi = Math.max(0.1, Math.min(Math.PI - 0.1, orbitControls.phi));
+
+                previousMouseX = e.clientX;
+                previousMouseY = e.clientY;
+            }
+        });
+
+        renderer.domElement.addEventListener('mouseup', (e) => {
+            if (!orbitControls.enabled || isPlayMode || isDraggingObject) return;
+            if (e.button === 1 || (e.button === 2 && !isDraggingObject)) {
+                isDraggingCamera = false;
+            }
+        });
+
+        renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault()); 
+
+        // Touch camera controls (two-finger drag for orbit)
+        let touchStartDistance = 0;
+        let touchStartAngle = 0;
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+        let isTwoFingerDragging = false;
+
+        renderer.domElement.addEventListener('touchstart', (e) => {
+            if (!orbitControls.enabled || isPlayMode || isDraggingObject) return;
+            if (e.touches.length === 2) {
+                isTwoFingerDragging = true;
+                lastTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                lastTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        renderer.domElement.addEventListener('touchmove', (e) => {
+            if (!orbitControls.enabled || isPlayMode || isDraggingObject) return;
+            if (isTwoFingerDragging && e.touches.length === 2) {
+                const currentTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                const currentTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+                const deltaX = currentTouchX - lastTouchX;
+                const deltaY = currentTouchY - lastTouchY;
+
+                orbitControls.theta -= deltaX * 0.005;
+                orbitControls.phi += deltaY * 0.005;
+
+                orbitControls.phi = Math.max(0.1, Math.min(Math.PI - 0.1, orbitControls.phi));
+
+                lastTouchX = currentTouchX;
+                lastTouchY = currentTouchY;
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        renderer.domElement.addEventListener('touchend', (e) => {
+            if (!orbitControls.enabled || isPlayMode || isDraggingObject) return;
+            if (isTwoFingerDragging && e.touches.length < 2) {
+                isTwoFingerDragging = false;
+            }
+        });
+
+        // --- UI Control Event Listeners ---
+        document.getElementById('gravity').addEventListener('input', (e) => {
+            params.gravity = parseFloat(e.target.value);
+            world.gravity.set(0, -params.gravity, 0); // Update physics gravity
+        });
+        
+        document.getElementById('colorMode').addEventListener('change', (e) => {
+            params.colorMode = e.target.value;
+        });
+        
+        document.getElementById('objectType').addEventListener('change', (e) => {
+            params.selectedObject = e.target.value;
+        });
+        
+        document.getElementById('objectSize').addEventListener('input', (e) => {
+            params.objectSize = parseFloat(e.target.value);
+        });
+        
+        document.getElementById('strangePhysics').addEventListener('change', (e) => {
+            params.strangePhysics = e.target.checked;
+        });
+        
+        document.getElementById('spawnInitialObjectsBtn').addEventListener('click', createInitialObjects); 
+        document.getElementById('explodeBtn').addEventListener('click', explodeStructure);
+        document.getElementById('connectAllToCentralAnchorBtn').addEventListener('click', connectAllToCentralAnchor); // New button listener
+        document.getElementById('resetBtn').addEventListener('click', resetScene);
+
+        // Toggle controls panel
+        document.querySelector('.toggle-controls').addEventListener('click', () => {
+            document.querySelector('.control-panel').classList.toggle('collapsed');
+        });
+
+        // Hide info panel after 5 seconds
+        setTimeout(() => {
+            document.getElementById('info').style.opacity = '0';
+        }, 5000);
+
+        // --- Mode Toggles ---
+        const toggleManipulationBtn = document.getElementById('toggleManipulationMode');
+        const toggleDrawingBtn = document.getElementById('toggleDrawingMode');
+        const togglePlayBtn = document.getElementById('togglePlayMode'); 
+        const sceneControls = document.getElementById('sceneControls');
+        const objectManipulationControls = document.getElementById('objectManipulationControls');
+        const drawingTools = document.getElementById('drawingTools');
+        const playModeControls = document.getElementById('playModeControls'); 
+
+        function setMode(mode) {
+            isManipulationMode = (mode === 'manipulation');
+            isDrawingMode = (mode === 'drawing');
+            isPlayMode = (mode === 'play');
+
+            // Update button active states
+            toggleManipulationBtn.classList.toggle('active-mode', isManipulationMode);
+            toggleDrawingBtn.classList.toggle('active-mode', isDrawingMode);
+            togglePlayBtn.classList.toggle('active-mode', isPlayMode);
+
+            // Show/hide control sections
+            sceneControls.style.display = isManipulationMode ? 'block' : 'none';
+            // Object manipulation controls are only shown if an object is selected AND in manipulation mode
+            objectManipulationControls.style.display = (isManipulationMode && selectedObject) ? 'block' : 'none';
+            drawingTools.style.display = isDrawingMode ? 'block' : 'none';
+            playModeControls.style.display = isPlayMode ? 'block' : 'none';
+
+            // Enable/disable drawing canvas interaction
+            drawingCanvas.style.pointerEvents = isDrawingMode ? 'auto' : 'none';
+
+            // Deselect object and detach transform controls if switching from manipulation to drawing
+            // But keep selected object if switching to play mode
+            if (isDrawingMode) {
+                setSelectedObject(null);
+            }
+
+            // In Play Mode, disable TransformControls and camera orbit
+            if (transformControls) {
+                transformControls.enabled = isManipulationMode;
+                transformControls.visible = isManipulationMode;
+            }
+            orbitControls.enabled = !isPlayMode; // Disable camera orbit in play mode
+        }
+
+        toggleManipulationBtn.addEventListener('click', () => setMode('manipulation'));
+        toggleDrawingBtn.addEventListener('click', () => setMode('drawing'));
+        togglePlayBtn.addEventListener('click', () => {
+            // When entering Play Mode, ensure the selected object's physics body is dynamic
+            if (selectedObject && selectedObject.body) {
+                selectedObject.body.type = CANNON.Body.DYNAMIC;
+            }
+            setMode('play');
+        }); 
+
+        // --- Selected Object Manipulation Sliders ---
+        document.getElementById('objPosX').addEventListener('input', (e) => {
+            if (selectedObject) {
+                selectedObject.mesh.position.x = parseFloat(e.target.value);
+                selectedObject.body.position.x = parseFloat(e.target.value);
+            }
+        });
+        document.getElementById('objPosY').addEventListener('input', (e) => {
+            if (selectedObject) {
+                selectedObject.mesh.position.y = parseFloat(e.target.value);
+                selectedObject.body.position.y = parseFloat(e.target.value);
+            }
+        });
+        document.getElementById('objPosZ').addEventListener('input', (e) => {
+            if (selectedObject) {
+                selectedObject.mesh.position.z = parseFloat(e.target.value);
+                selectedObject.body.position.z = parseFloat(e.target.value);
+            }
+        });
+
+        document.getElementById('objScaleX').addEventListener('input', (e) => {
+            if (selectedObject) {
+                selectedObject.mesh.scale.x = parseFloat(e.target.value);
+                // Trigger physics body update
+                if (transformControls) transformControls.dispatchEvent({ type: 'objectChange' });
+            }
+        });
+        document.getElementById('objScaleY').addEventListener('input', (e) => {
+            if (selectedObject) {
+                selectedObject.mesh.scale.y = parseFloat(e.target.value);
+                // Trigger physics body update
+                if (transformControls) transformControls.dispatchEvent({ type: 'objectChange' });
+            }
+        });
+        document.getElementById('objScaleZ').addEventListener('input', (e) => {
+            if (selectedObject) {
+                selectedObject.mesh.scale.z = parseFloat(e.target.value);
+                // Trigger physics body update
+                if (transformControls) transformControls.dispatchEvent({ type: 'objectChange' });
+            }
+        });
+
+        document.getElementById('randomizeProperties').addEventListener('input', (e) => {
+            if (selectedObject) {
+                const randomFactor = parseFloat(e.target.value); // 0 to 1
+                const baseScale = 1.0; // Assume original scale was 1
+                
+                // Apply random scale based on slider value
+                selectedObject.mesh.scale.x = baseScale + (Math.random() * 2 - 1) * randomFactor * 5; // Scale between 1 +/- 5*randomFactor
+                selectedObject.mesh.scale.y = baseScale + (Math.random() * 2 - 1) * randomFactor * 5;
+                selectedObject.mesh.scale.z = baseScale + (Math.random() * 2 - 1) * randomFactor * 5;
+
+                // Clamp scale to reasonable values
+                selectedObject.mesh.scale.x = Math.max(0.1, selectedObject.mesh.scale.x);
+                selectedObject.mesh.scale.y = Math.max(0.1, selectedObject.mesh.scale.y);
+                selectedObject.mesh.scale.z = Math.max(0.1, selectedObject.mesh.scale.z);
+
+                // Update sliders to reflect new random values
+                document.getElementById('objScaleX').value = selectedObject.mesh.scale.x.toFixed(1);
+                document.getElementById('objScaleY').value = selectedObject.mesh.scale.y.toFixed(1);
+                document.getElementById('objScaleZ').value = selectedObject.mesh.scale.z.toFixed(1);
+
+                // Trigger physics body update
+                if (transformControls) transformControls.dispatchEvent({ type: 'objectChange' });
+            }
+        });
+
+        document.getElementById('setTranslateMode').addEventListener('click', () => {
+            if (transformControls) transformControls.setMode('translate');
+        });
+        document.getElementById('setScaleMode').addEventListener('click', () => {
+            if (transformControls) transformControls.setMode('scale');
+        });
+
+        document.getElementById('connectObjectsBtn').addEventListener('click', connectSelectedObjects);
+
+        // --- Drawing Tool Controls ---
+        document.getElementById('extrudeDepth').addEventListener('input', (e) => {
+            params.extrudeDepth = parseFloat(e.target.value);
+        });
+        document.getElementById('simplifyTolerance').addEventListener('input', (e) => {
+            params.simplifyTolerance = parseFloat(e.target.value);
+        });
+        document.getElementById('clearDrawing').addEventListener('click', () => {
+            drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            drawingPoints = [];
+            drawingStrokes = [];
+            undoneStrokes = [];
+        });
+        document.getElementById('createFromDrawing').addEventListener('click', create3DFromDrawing);
+        document.getElementById('createOrbsFromDrawing').addEventListener('click', createOrbsFromDrawing); // New event listener for orb creation
+        document.getElementById('undoDrawing').addEventListener('click', () => {
+            if (drawingStrokes.length > 0) {
+                const lastStroke = drawingStrokes.pop();
+                undoneStrokes.push(lastStroke);
+                redrawDrawingCanvas();
+            }
+        });
+        document.getElementById('redoDrawing').addEventListener('click', () => {
+            if (undoneStrokes.length > 0) {
+                const nextStroke = undoneStrokes.pop();
+                drawingStrokes.push(nextStroke);
+                redrawDrawingCanvas();
+            }
+        });
+
+
+        // --- Play Mode Keyboard Controls ---
+        window.addEventListener('keydown', (e) => {
+            if (isPlayMode) {
+                keyboard[e.key.toLowerCase()] = true;
+            }
+            // Keyboard control for sliders
+            if (document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'range') {
+                const slider = document.activeElement;
+                const step = parseFloat(slider.step);
+                let value = parseFloat(slider.value);
+
+                if (e.key === 'ArrowLeft') {
+                    value = Math.max(parseFloat(slider.min), value - step);
+                    slider.value = value;
+                    slider.dispatchEvent(new Event('input')); // Trigger input event to update Three.js
+                    e.preventDefault(); // Prevent page scrolling
+                } else if (e.key === 'ArrowRight') {
+                    value = Math.min(parseFloat(slider.max), value + step);
+                    slider.value = value;
+                    slider.dispatchEvent(new Event('input')); // Trigger input event to update Three.js
+                    e.preventDefault(); // Prevent page scrolling
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (isPlayMode) {
+                keyboard[e.key.toLowerCase()] = false;
+            }
+        });
+
+        // --- Animation Loop ---
+        let lastTime;
+        let elapsedTime = 0;
+        
+        function animate(time) {
+            requestAnimationFrame(animate);
+            
+            if (lastTime !== undefined) {
+                const dt = Math.min((time - lastTime) / 1000, 0.1); // Cap delta time to avoid physics instability
+                world.step(1/60, dt, 3); // Physics simulation step
+                elapsedTime += dt;
+            }
+            lastTime = time;
+
+            // Update camera position (manual orbit, no auto-rotate)
+            if (orbitControls.enabled) {
+                camera.position.x = orbitControls.radius * Math.sin(orbitControls.theta) * Math.cos(orbitControls.phi);
+                camera.position.z = orbitControls.radius * Math.cos(orbitControls.theta) * Math.cos(orbitControls.phi);
+                camera.position.y = orbitControls.radius * Math.sin(orbitControls.phi);
+                camera.lookAt(orbitControls.target);
+            }
+
+
+            // Apply forces in Play Mode
+            if (isPlayMode && selectedObject && selectedObject.body) {
+                const moveForce = 500; // Force magnitude for movement
+                const body = selectedObject.body;
+
+                // Apply forces based on camera's orientation
+                const cameraDirection = new THREE.Vector3();
+                camera.getWorldDirection(cameraDirection);
+                cameraDirection.y = 0; // Keep movement on the horizontal plane
+                cameraDirection.normalize();
+
+                const rightDirection = new THREE.Vector3().crossVectors(camera.up, cameraDirection).normalize();
+
+                const forceVector = new CANNON.Vec3(0, 0, 0);
+
+                if (keyboard['w']) { // Forward
+                    forceVector.x += cameraDirection.x * moveForce;
+                    forceVector.z += cameraDirection.z * moveForce;
+                }
+                if (keyboard['s']) { // Backward
+                    forceVector.x -= cameraDirection.x * moveForce;
+                    forceVector.z -= cameraDirection.z * moveForce;
+                }
+                if (keyboard['a']) { // Left
+                    forceVector.x -= rightDirection.x * moveForce;
+                    forceVector.z -= rightDirection.z * moveForce;
+                }
+                if (keyboard['d']) { // Right
+                    forceVector.x += rightDirection.x * moveForce;
+                    forceVector.z += rightDirection.z * moveForce;
+                }
+                body.applyForce(forceVector, body.position);
+            }
+
+
+            // Update dynamic objects
+            objects.forEach(obj => { 
+                obj.mesh.position.copy(obj.body.position);
+                obj.mesh.quaternion.copy(obj.body.quaternion);
+            });
+
+            // Update particles (subtle movement)
+            const positions = particleGeometry.attributes.position.array;
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                positions[i3 + 1] += Math.sin(elapsedTime + i) * 0.02; // Vertical bobbing
+                
+                // Wrap particles if they go too far out of bounds
+                if (Math.abs(positions[i3]) > 200) positions[i3] *= -0.9;
+                if (Math.abs(positions[i3 + 1]) > 200) positions[i3 + 1] *= -0.9;
+                if (Math.abs(positions[i3 + 2]) > 200) positions[i3 + 2] *= -0.9;
+            }
+            particleGeometry.attributes.position.needsUpdate = true;
+
+            // Update TransformControls if active
+            if (transformControls && transformControls.enabled) {
+                transformControls.update();
+                // Sync selected object's physics body with its mesh if TransformControls is dragging
+                if (selectedObject && transformControls.dragging) {
+                    selectedObject.body.position.copy(selectedObject.mesh.position);
+                    selectedObject.body.quaternion.copy(selectedObject.mesh.quaternion);
+                    selectedObject.body.velocity.set(0,0,0); // Stop physics movement while dragging
+                    selectedObject.body.angularVelocity.set(0,0,0);
+                    // Update UI sliders (position only, scale handled by change listener)
+                    document.getElementById('objPosX').value = selectedObject.mesh.position.x.toFixed(1);
+                    document.getElementById('objPosY').value = selectedObject.mesh.position.y.toFixed(1);
+                    document.getElementById('objPosZ').value = selectedObject.mesh.position.z.toFixed(1);
+                }
+            }
+
+            // Update connection lines
+            constraints.forEach(constraint => {
+                if (constraint.userData && constraint.userData.line) {
+                    const line = constraint.userData.line;
+                    const posA = new THREE.Vector3().copy(constraint.bodyA.position);
+                    const posB = new THREE.Vector3().copy(constraint.bodyB.position);
+                    line.geometry.setFromPoints([posA, posB]);
+                    line.geometry.attributes.position.needsUpdate = true;
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+        
+        // --- Particle System for Ambient Effects ---
+        const particleCount = 3000;
+        const particleGeometry = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        const particleSizes = new Float32Array(particleCount);
+        
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            particlePositions[i3] = (Math.random() - 0.5) * 400; // X
+            particlePositions[i3 + 1] = (Math.random() - 0.5) * 400; // Y
+            particlePositions[i3 + 2] = (Math.random() - 0.5) * 400; // Z
+            particleSizes[i] = Math.random() * 2;
+        }
+        
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        particleGeometry.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1)); // Not directly used by PointsMaterial size
+
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 1, // Base size, sizeAttenuation makes it scale with distance
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.AdditiveBlending, // For glowing effect
+            sizeAttenuation: true // Particles appear smaller when further away
+        });
+        
+        const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particleSystem);
+
+        // --- Window Resize Handler ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            drawingCanvas.width = window.innerWidth; // Resize drawing canvas
+            drawingCanvas.height = window.innerHeight; // Resize drawing canvas
+            redrawDrawingCanvas(); // Redraw drawing on resize
+        });
+
+        // Start the animation loop when the window loads
+        window.onload = function () {
+            animate();
+        };
+    </script>
+</body>
+</html>
