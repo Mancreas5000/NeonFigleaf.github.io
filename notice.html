@@ -1,0 +1,1872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angry Blocks</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            color: white;
+            font-family: 'Inter', sans-serif; /* Using Inter font */
+            transition: background-color 2s ease-in-out;
+            -webkit-user-select: none; /* Disable text selection on iOS */
+            -moz-user-select: none;    /* Disable text selection on Firefox */
+            -ms-user-select: none;     /* Disable text selection on IE/Edge */
+            user-select: none;         /* Disable text selection */
+            -webkit-touch-callout: none; /* Disable callout on iOS */
+            -webkit-tap-highlight-color: rgba(0,0,0,0); /* Disable tap highlight */
+            touch-action: none; /* Prevent default browser touch actions on the body */
+        }
+        canvas {
+            display: block;
+            width: 100vw; /* Make canvas fluid width */
+            height: 100vh; /* Make canvas fluid height */
+            touch-action: none; /* Prevent default touch actions like scrolling/zooming on the canvas */
+        }
+        #game-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px; /* Rounded corners */
+            font-size: 14px;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px; /* Rounded corners */
+            color: white;
+            font-size: 14px;
+            width: 250px;
+            text-align: center;
+            z-index: 10; /* Ensure it's above the canvas */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.3s ease-in-out; /* Smooth transition for expand/collapse */
+        }
+
+        /* Style for the summary (toggle button) */
+        .control-panel summary {
+            cursor: pointer;
+            outline: none; /* Remove outline on focus */
+            padding: 0; /* Remove default padding */
+            margin: -15px; /* Adjust to cover the original padding of the panel */
+            padding: 15px; /* Re-add padding inside summary */
+            border-radius: 8px; /* Match panel's border-radius */
+            background: rgba(0,0,0,0.5); /* Slightly darker background for the header */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* Hide the default arrow marker for details/summary */
+        .control-panel summary::-webkit-details-marker {
+            display: none;
+        }
+        .control-panel summary::marker {
+            display: none;
+        }
+
+        .control-panel summary h3 {
+            margin: 0; /* Remove margin from h3 inside summary */
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Style for the toggle icon */
+        #toggle-icon {
+            font-size: 1.2em;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        /* Rotate icon when details is open */
+        .control-panel[open] #toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Hide content when details is closed (default behavior, but good to be explicit) */
+        .control-panel:not([open]) .slider-container,
+        .control-panel:not([open]) button {
+            display: none;
+        }
+
+        .control-panel button {
+            margin-top: 10px;
+            background: #e74c3c; /* Angry Birds red */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); /* Button shadow */
+            -webkit-tap-highlight-color: rgba(0,0,0,0); /* Disable tap highlight */
+        }
+        .control-panel button:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+        .control-panel button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .slider-container input[type="range"] {
+            width: 90%;
+            -webkit-appearance: none;
+            height: 8px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+            border-radius: 4px;
+        }
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e74c3c;
+            cursor: pointer;
+        }
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e74c3c;
+            cursor: pointer;
+        }
+
+        #score-display {
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px; /* Rounded corners */
+            font-size: 20px;
+            font-weight: bold;
+            color: #f1c40f; /* Gold for score */
+        }
+        #tries-display { /* New element for tries */
+            position: absolute;
+            top: 110px; /* Below score */
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #3498db; /* Blue for tries */
+        }
+        #level-display { /* New element for level */
+            position: absolute;
+            top: 160px; /* Below tries */
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #27ae60; /* Green for level */
+        }
+        #controls-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px; /* Rounded corners */
+            font-size: 12px;
+            opacity: 1;
+            pointer-events: none;
+        }
+        #game-over-message { /* New element for game over */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 30px;
+            border-radius: 10px;
+            font-size: 30px;
+            font-weight: bold;
+            color: #e74c3c;
+            text-align: center;
+            display: none; /* Hidden by default */
+            z-index: 100; /* Ensure it's on top */
+        }
+        #end-game-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 40px;
+            border-radius: 15px;
+            font-size: 36px;
+            font-weight: bold;
+            color: #f1c40f;
+            text-align: center;
+            display: none; /* Hidden by default */
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(241, 196, 15, 0.8);
+        }
+        #next-level-message { /* New element for "Next Level" pop-up */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 40px;
+            border-radius: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2ecc71; /* Green for success */
+            text-align: center;
+            display: none; /* Hidden by default */
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(46, 204, 113, 0.8);
+        }
+        #next-level-message button {
+            margin-top: 20px;
+            background: #27ae60; /* Darker green for button */
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background 0.3s, transform 0.1s;
+        }
+        #next-level-message button:hover {
+            background: #229a5a;
+            transform: translateY(-2px);
+        }
+        #next-level-message button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        #golden-block-message { /* New element for golden block found */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,215,0,0.9); /* Gold background */
+            padding: 40px;
+            border-radius: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            display: none; /* Hidden by default */
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(255,215,0,0.8);
+        }
+        #golden-block-message button {
+            margin-top: 20px;
+            background: #b8860b; /* Darker gold for button */
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background 0.3s, transform 0.1s;
+        }
+        #golden-block-message button:hover {
+            background: #a0740a;
+            transform: translateY(-2px);
+        }
+        #golden-block-message button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        #touch-controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column; /* Arrange buttons vertically */
+            gap: 5px; /* Smaller gap */
+            z-index: 10;
+        }
+        .touch-button {
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 15px;
+            border-radius: 50%;
+            font-size: 20px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255,255,255,0.5);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            -webkit-tap-highlight-color: rgba(0,0,0,0); /* Disable tap highlight */
+        }
+        .touch-button.active {
+            background: rgba(255,255,255,0.8);
+            color: black;
+        }
+        #touch-wasd-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: grid;
+            grid-template-columns: repeat(3, 60px); /* 3 columns, 60px each */
+            grid-template-rows: repeat(2, 60px); /* 2 rows, 60px each */
+            gap: 5px;
+            z-index: 10;
+        }
+        #touch-move-up { grid-column: 2; grid-row: 1; }
+        #touch-move-left { grid-column: 1; grid-row: 2; }
+        #touch-move-down { grid-column: 2; grid-row: 2; }
+        #touch-move-right { grid-column: 3; grid-row: 2; }
+    </style>
+</head>
+<body>
+    <div id="game-info">Angry Blocks: Knock down the structure!</div>
+    <div id="score-display">Blocks Down: 0</div>
+    <div id="tries-display">Tries Left: 3</div>
+    <div id="level-display">Level: 1</div>
+    <div id="game-over-message">Game Over!</div>
+    <div id="end-game-message"></div>
+    <div id="next-level-message">
+        <h2>Level Cleared!</h2>
+        <p>You've knocked down enough blocks!</p>
+        <button id="nextLevelBtn">Go to Next Level</button>
+    </div>
+    <div id="golden-block-message">
+        <h2>You found the Golden Block!</h2>
+        <p>New levels unlocked! Prepare for more challenges!</p>
+        <button id="goldenBlockBtn">Continue to New Levels</button>
+    </div>
+
+    <details class="control-panel" id="control-panel-details" open>
+        <summary>
+            <h3>Game Controls <span id="toggle-icon">▼</span></h3>
+        </summary>
+        <div class="slider-container">
+            <label for="gravity">Gravity Strength: <span id="gravity-value">9.8</span></label>
+            <input type="range" id="gravity" min="0" max="20" step="0.1" value="9.8">
+        </div>
+        <div class="slider-container">
+            <label for="slingshotPosX">Slingshot X: <span id="slingshotPosX-value">0</span></label>
+            <input type="range" id="slingshotPosX" min="-100" max="100" step="1" value="0">
+        </div>
+        <div class="slider-container">
+            <label for="slingshotPosY">Slingshot Y: <span id="slingshotPosY-value">-14</span></label>
+            <input type="range" id="slingshotPosY" min="-40" max="80" step="1" value="-14">
+        </div>
+        <div class="slider-container">
+            <label for="slingshotPosZ">Slingshot Z: <span id="slingshotPosZ-value">60</span></label>
+            <input type="range" id="slingshotPosZ" min="0" max="100" step="1" value="60">
+        </div>
+        <div class="slider-container">
+            <label for="slingshotRotationY">Slingshot Rotation Y: <span id="slingshotRotationY-value">0</span></label>
+            <input type="range" id="slingshotRotationY" min="0" max="6.28" step="0.01" value="0">
+        </div>
+        <div class="slider-container">
+            <label for="powerLevel">Power Level: <span id="powerLevel-value">1</span></label>
+            <input type="range" id="powerLevel" min="1" max="3" step="1" value="1">
+        </div>
+        <button id="resetBtn">Reset Game</button>
+    </details>
+
+    <div id="controls-info">
+        Left Click (Hold & Drag): Aim Slingshot<br>
+        Left Click (Release): Launch Bird<br>
+        Right Click (Hold & Drag): Rotate Camera<br>
+        WASD: Move Camera<br>
+        Hold 'F' + Left Click (Drag): Move Catapult<br>
+        Spacebar: Trigger Explosion
+    </div>
+
+    <div id="touch-controls">
+        <div id="touch-move-catapult" class="touch-button">F</div>
+        <div id="touch-rotate-camera" class="touch-button">↻</div>
+    </div>
+
+    <div id="touch-wasd-controls">
+        <div id="touch-move-up" class="touch-button">▲</div>
+        <div id="touch-move-left" class="touch-button">◀</div>
+        <div id="touch-move-down" class="touch-button">▼</div>
+        <div id="touch-move-right" class="touch-button">▶</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script type="module">
+        import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
+        // Removed Tone.js import as requested
+        // import * as Tone from 'https://cdnjs.cloudflare.com/ajax/libs/tone/15.0.0/Tone.min.js';
+
+        // --- Three.js Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 30, 120);
+        camera.lookAt(0, 10, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Parameters ---
+        const params = {
+            gravity: 9.8,
+            launchForceScale: 250, // Increased by x10 as requested
+            birdSize: 4,
+            birdMass: 15, // Base bird mass
+            minPullDistance: 5,
+            maxPullDistance: 30,
+            blockMass: 0.8,
+            cameraRotationSpeed: 0.005,
+            cameraMoveSpeed: 1.0,
+            catapultMoveSpeed: 0.1, // Speed for moving the catapult
+            buildingBlockSize: 8, // Explicitly defined for standard buildings
+            towerBlockSize: 8 * 2,
+            towerBlockMass: 1.5,
+            longTallBlockSize: { width: 2, height: 30, depth: 10 }, // Thinner and taller for domino effect
+            maxTries: 3,
+            maxLevels: 24, // Initial set of levels
+            totalLevels: 48, // Total levels if golden block is found
+            blocksToNextLevel: 80, // Changed from 150 to 80 as requested
+            slingshotPosX: 0,
+            slingshotPosY: -14,
+            slingshotPosZ: 60,
+            slingshotRotationY: 0, // New: Y-axis rotation for the slingshot
+            explosionRadius: 50,
+            explosionForce: 750, // Reduced by half as requested (was 1500)
+            powerLevel: 1, // Current power level
+            goldenBlockFound: false, // Track if the golden block has been found in the current game set
+            goldenBlockPlacedThisSet: false // Track if a golden block has been placed in the current game set
+        };
+
+        // --- Cannon-ES Physics Setup ---
+        const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -params.gravity, 0) });
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+
+        // --- Materials ---
+        const defaultMaterial = new CANNON.Material("defaultMaterial");
+        const defaultContactMaterial = new CANNON.ContactMaterial(
+            defaultMaterial,
+            defaultMaterial,
+            {
+                friction: 0.4,
+                restitution: 0.2
+            }
+        );
+        world.addContactMaterial(defaultContactMaterial);
+        world.defaultContactMaterial = defaultContactMaterial;
+
+        // --- Create a Ground ---
+        const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: defaultMaterial });
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        groundBody.position.y = -20;
+        world.addBody(groundBody);
+
+        const groundGeo = new THREE.PlaneGeometry(2000, 2000, 50, 50);
+        const groundMat = new THREE.MeshStandardMaterial({
+            color: 0x4A4A4A,
+            roughness: 0.8,
+            metalness: 0.2,
+            wireframe: false
+        });
+        const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.position.y = -20;
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+
+        // --- Lighting ---
+        scene.add(new THREE.AmbientLight(0x404040, 2));
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.8);
+        directionalLight.position.set(50, 150, 100);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 400;
+        directionalLight.shadow.camera.left = -100;
+        directionalLight.shadow.camera.right = 100;
+        directionalLight.shadow.camera.top = 100;
+        directionalLight.shadow.camera.bottom = -100;
+        directionalLight.shadow.camera.aspect = 1;
+        scene.add(directionalLight);
+
+        // --- Lava Lamp Background ---
+        const lavaCanvas = document.createElement('canvas');
+        lavaCanvas.width = 256;
+        lavaCanvas.height = 256;
+        const lavaContext = lavaCanvas.getContext('2d');
+        const lavaTexture = new THREE.CanvasTexture(lavaCanvas);
+        scene.background = lavaTexture;
+
+        const blobs = [];
+        const numBlobs = 10;
+        for (let i = 0; i < numBlobs; i++) {
+            blobs.push({
+                x: Math.random() * lavaCanvas.width,
+                y: Math.random() * lavaCanvas.height,
+                radius: Math.random() * 30 + 20,
+                dx: (Math.random() - 0.5) * 2,
+                dy: (Math.random() - 0.5) * 2,
+                color: `hsl(${Math.random() * 360}, 70%, 50%)`
+            });
+        }
+
+        function animateLavaLamp() {
+            lavaContext.clearRect(0, 0, lavaCanvas.width, lavaCanvas.height);
+            lavaContext.filter = 'blur(8px)';
+            lavaContext.globalCompositeOperation = 'lighter';
+
+            for (const blob of blobs) {
+                blob.x += blob.dx;
+                blob.y += blob.dy;
+
+                if (blob.x + blob.radius > lavaCanvas.width || blob.x - blob.radius < 0) {
+                    blob.dx *= -1;
+                }
+                if (blob.y + blob.radius > lavaCanvas.height || blob.y - blob.radius < 0) {
+                    blob.dy *= -1;
+                }
+
+                lavaContext.beginPath();
+                lavaContext.arc(blob.x, blob.y, blob.radius, 0, Math.PI * 2);
+                lavaContext.fillStyle = blob.color;
+                lavaContext.fill();
+            }
+
+            lavaContext.globalCompositeOperation = 'source-over';
+            lavaContext.filter = 'none';
+            lavaTexture.needsUpdate = true;
+        }
+
+        // --- Game State Variables ---
+        let currentBird = null;
+        let isAiming = false;
+        let isRotatingCamera = false;
+        let isFKeyDown = false; // New: state of 'F' key (for keyboard and touch button)
+        let isCatapultDragging = false; // New: true when F is down and left mouse is dragging
+        let initialMousePos = new THREE.Vector2();
+        let currentMousePos = new THREE.Vector2();
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let slingshotLine = null; // Initialized to null
+        let aimingArrow = null; // Initialized to null
+        let targetMark = null; // New: visual mark for aiming target
+        // slingshotOrigin will now be calculated dynamically
+        let slingshotOrigin = new THREE.Vector3();
+
+        // slingshotPost1 and slingshotPost2 will now be calculated dynamically
+        let slingshotPost1 = new THREE.Vector3();
+        let slingshotPost2 = new THREE.Vector3();
+        // Removed slingshotBand1 and slingshotBand2 as they are not needed for cannon
+        let catapultMesh = null; // Declare catapult mesh variable
+
+        // --- Game Logic Variables ---
+        let blocksKnockedDown = 0;
+        let triesLeft = params.maxTries;
+        let currentLevel = 1; // Current game level
+        let gameOver = false;
+        let isGamePausedForPopup = false; // New flag for pausing interaction during popups
+        const gameOverMessage = document.getElementById('game-over-message');
+        const endGameMessage = document.getElementById('end-game-message');
+        const nextLevelMessage = document.getElementById('next-level-message'); // Get reference to new element
+        const nextLevelBtn = document.getElementById('nextLevelBtn'); // Get reference to new button
+        const goldenBlockMessage = document.getElementById('golden-block-message'); // Get reference to new element
+        const goldenBlockBtn = document.getElementById('goldenBlockBtn'); // Get reference to new button
+
+        // --- Camera Movement with WASD (for keyboard users) ---
+        const keys = {
+            w: false,
+            a: false,
+            s: false,
+            d: false
+        };
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'w') keys.w = true;
+            if (event.key === 'a') keys.a = true;
+            if (event.key === 's') keys.s = true;
+            if (event.key === 'd') keys.d = true;
+            if (event.key === 'f' || event.key === 'F') isFKeyDown = true; // Set F key state
+
+            // Spacebar explosion
+            if (event.code === 'Space' && currentBird && currentBird.canExplode) {
+                triggerExplosion(currentBird.body.position);
+                currentBird.canExplode = false; // Allow only one explosion per bird
+                // Immediately remove the bird after explosion
+                scene.remove(currentBird.mesh);
+                world.removeBody(currentBird.body);
+                currentBird = null;
+            }
+        });
+
+        window.addEventListener('keyup', (event) => {
+            if (event.key === 'w') keys.w = false;
+            if (event.key === 'a') keys.a = false;
+            if (event.key === 's') keys.s = false;
+            if (event.key === 'd') keys.d = false;
+            if (event.key === 'f' || event.key === 'F') isFKeyDown = false; // Clear F key state
+        });
+
+        // --- Helper function to remove slingshot visuals ---
+        function removeSlingshotVisuals() {
+            if (slingshotLine) {
+                scene.remove(slingshotLine);
+                slingshotLine = null;
+            }
+            if (aimingArrow) {
+                scene.remove(aimingArrow);
+                aimingArrow = null;
+            }
+            if (targetMark) {
+                scene.remove(targetMark);
+                targetMark = null;
+            }
+            // Removed slingshotBand1 and slingshotBand2 cleanup
+        }
+
+        // --- Explosion Function ---
+        function triggerExplosion(explosionPosition) {
+            const explosionRadius = params.explosionRadius;
+            const explosionForce = params.explosionForce;
+
+            // Apply force to all building blocks
+            buildingBlocks.forEach(block => {
+                const distance = explosionPosition.distanceTo(block.body.position);
+                if (distance < explosionRadius) {
+                    const forceDirection = new CANNON.Vec3();
+                    // Vector from explosion center to block
+                    block.body.position.vsub(explosionPosition, forceDirection);
+                    forceDirection.normalize();
+
+                    // Scale force by inverse distance (closer blocks get more force)
+                    const strength = (1 - (distance / explosionRadius)) * explosionForce;
+                    block.body.applyImpulse(new CANNON.Vec3(forceDirection.x * strength, forceDirection.y * strength, forceDirection.z * strength), block.body.position);
+                }
+            });
+
+            // Optional: Add a temporary visual sphere for explosion
+            const explosionSphereGeo = new THREE.SphereGeometry(explosionRadius * 0.5, 16, 16);
+            const explosionSphereMat = new THREE.MeshBasicMaterial({ color: 0xFFA500, transparent: true, opacity: 0.5 });
+            const explosionSphere = new THREE.Mesh(explosionSphereGeo, explosionSphereMat);
+            explosionSphere.position.copy(explosionPosition);
+            scene.add(explosionSphere);
+            setTimeout(() => {
+                scene.remove(explosionSphere);
+                explosionSphere.geometry.dispose();
+                explosionSphere.material.dispose();
+            }, 300); // Remove after 300ms
+        }
+
+
+        // --- Mouse and Touch Interaction Handlers ---
+        function handleMouseDown(clientX, clientY, button) {
+            if (gameOver || currentLevel > params.totalLevels || isGamePausedForPopup) return; // Adjusted for totalLevels
+
+            const controlPanelDetails = document.getElementById('control-panel-details'); // Get the details element
+            const touchControls = document.getElementById('touch-controls');
+            const touchWasdControls = document.getElementById('touch-wasd-controls'); // New WASD controls
+            const targetElement = document.elementFromPoint(clientX, clientY);
+
+            // If click/touch is on a UI element (control panel, touch buttons), don't process game logic
+            if (controlPanelDetails.contains(targetElement) || touchControls.contains(targetElement) || touchWasdControls.contains(targetElement) || nextLevelMessage.contains(targetElement) || goldenBlockMessage.contains(targetElement)) {
+                return;
+            }
+
+            // Handle mouse right-click (always prioritizes camera rotation for mouse)
+            if (button === 2) {
+                isRotatingCamera = true;
+                lastMouseX = clientX;
+                lastMouseY = clientY;
+                return; // Stop further processing for right click
+            }
+
+            // Handle primary click/touch (button === 0)
+            if (button === 0) {
+                if (isFKeyDown) { // 'F' mode (keyboard or touch button)
+                    isCatapultDragging = true;
+                    lastMouseX = clientX;
+                    lastMouseY = clientY;
+                } else if (isRotatingCamera) { // 'Rotate Camera' mode (keyboard right-click or touch button)
+                    // Already in rotation mode, just update mouse position for drag
+                    lastMouseX = clientX;
+                    lastMouseY = clientY;
+                } else if (!currentBird && triesLeft > 0) { // Default: Aiming mode
+                    isAiming = true;
+                    initialMousePos.set(clientX, clientY);
+
+                    // Ensure slingshotOrigin is updated before creating the bird
+                    updateSlingshotPosition();
+
+                    currentBird = createBird();
+                    // Bird position will be set to slingshotOrigin, not pulled back initially
+                    currentBird.body.position.copy(slingshotOrigin);
+                    currentBird.mesh.position.copy(slingshotOrigin);
+                    // Do NOT set to SLEEPING here. We will manually hold it in animate loop.
+                    currentBird.canExplode = true; // Set to true when bird is created
+
+                    // Aiming arrow setup
+                    const arrowDirection = new THREE.Vector3(0, 0, 0); // Will be updated in mousemove
+                    const arrowOrigin = slingshotOrigin.clone();
+                    const arrowLength = 10; // Placeholder, will be dynamic
+                    const arrowColor = 0x00ff00;
+                    aimingArrow = new THREE.ArrowHelper(arrowDirection, arrowOrigin, arrowLength, arrowColor, 3, 2);
+                    scene.add(aimingArrow);
+
+                    // Target mark setup
+                    const targetMarkGeometry = new THREE.SphereGeometry(2, 8, 8);
+                    const targetMarkMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.7 });
+                    targetMark = new THREE.Mesh(targetMarkGeometry, targetMarkMaterial);
+                    targetMark.visible = false; // Hidden until a target is found
+                    scene.add(targetMark);
+
+                    // Slingshot bands are removed for cannon
+                }
+            }
+        }
+
+        function handleMouseMove(clientX, clientY) {
+            if (gameOver || currentLevel > params.totalLevels || isGamePausedForPopup) return; // Adjusted for totalLevels
+
+            if (isAiming && currentBird) {
+                // Use Raycaster to find the intersection point on the ground or objects
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(new THREE.Vector2(
+                    (clientX / window.innerWidth) * 2 - 1,
+                    -(clientY / window.innerHeight) * 2 + 1
+                ), camera);
+
+                // Define a plane for intersection (e.g., ground plane)
+                const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -groundBody.position.y); // Y-up plane at ground level
+                const intersectPoint = new THREE.Vector3();
+                let targetFound = false;
+
+                // Check intersection with ground plane
+                if (raycaster.ray.intersectPlane(groundPlane, intersectPoint)) {
+                    targetFound = true;
+                } else {
+                    // Optionally, check intersection with building blocks if you want to aim directly at them
+                    const intersects = raycaster.intersectObjects(buildingBlocks.map(b => b.mesh), true);
+                    if (intersects.length > 0) {
+                        intersectPoint.copy(intersects[0].point);
+                        targetFound = true;
+                    }
+                }
+
+                if (targetFound) {
+                    // Update aiming arrow
+                    const direction = new THREE.Vector3().subVectors(intersectPoint, slingshotOrigin).normalize();
+                    const distance = slingshotOrigin.distanceTo(intersectPoint);
+                    aimingArrow.setDirection(direction);
+                    aimingArrow.position.copy(slingshotOrigin);
+                    aimingArrow.setLength(distance, 3, 2); // Arrow length up to the target
+                    aimingArrow.visible = true;
+
+                    // Update target mark
+                    targetMark.position.copy(intersectPoint);
+                    targetMark.visible = true;
+
+                    // Animate cannon barrel to look at the target
+                    const cannonBarrelMesh = catapultMesh.children.find(child => child.name === 'cannonBarrel');
+                    if (cannonBarrelMesh) {
+                        // Calculate direction from barrel's pivot (slingshotOrigin) to the target
+                        const targetDirection = new THREE.Vector3().subVectors(intersectPoint, slingshotOrigin).normalize();
+
+                        // Convert targetDirection to the local space of the catapultMesh group
+                        const inverseCatapultQuaternion = catapultMesh.quaternion.clone().invert();
+                        const localTargetDirection = targetDirection.clone().applyQuaternion(inverseCatapultQuaternion);
+
+                        // The barrel's initial "forward" direction after its own rotation.x = PI/2 is local -Z
+                        const barrelInitialForward = new THREE.Vector3(0, 0, -1);
+
+                        // Create a quaternion to rotate the barrel's initial forward to the local target direction
+                        const barrelQuaternion = new THREE.Quaternion().setFromUnitVectors(barrelInitialForward, localTargetDirection);
+
+                        // Apply this new aiming rotation to the barrel.
+                        // First, reset barrel's rotation to its initial (PI/2 around X)
+                        cannonBarrelMesh.rotation.set(Math.PI / 2, 0, 0);
+                        // Then apply the new aiming rotation
+                        cannonBarrelMesh.quaternion.premultiply(barrelQuaternion);
+                    }
+
+                } else {
+                    // If no intersection, hide the aiming visuals
+                    aimingArrow.visible = false;
+                    targetMark.visible = false;
+                }
+
+                // Slingshot bands are removed, no update needed here.
+
+            } else if (isRotatingCamera) {
+                const deltaX = clientX - lastMouseX;
+                const deltaY = clientY - lastMouseY;
+
+                camera.rotation.y -= deltaX * params.cameraRotationSpeed;
+                camera.rotation.x -= deltaY * params.cameraRotationSpeed;
+
+                camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+
+                lastMouseX = clientX;
+                lastMouseY = clientY;
+            } else if (isCatapultDragging) { // Move catapult if 'F' is held and left mouse is dragging
+                const deltaX = clientX - lastMouseX;
+                const deltaY = clientY - lastMouseY;
+
+                params.slingshotPosX += deltaX * params.catapultMoveSpeed;
+                params.slingshotPosY -= deltaY * params.catapultMoveSpeed; // Invert Y for screen to world
+
+                // Update the actual slingshot origin and posts
+                updateSlingshotPosition();
+
+                lastMouseX = clientX;
+                lastMouseY = clientY;
+            }
+        }
+
+        function handleMouseUp(button) {
+            if (gameOver || currentLevel > params.totalLevels || isGamePausedForPopup) return; // Adjusted for totalLevels
+
+            // Get the details element (control panel)
+            const controlPanelDetails = document.getElementById('control-panel-details');
+            const touchControls = document.getElementById('touch-controls');
+            const touchWasdControls = document.getElementById('touch-wasd-controls');
+
+            // If the control panel is open, and the mouse up happened within it, do nothing.
+            // This prevents accidental firing when interacting with the control panel.
+            // For touch events, we already prevent default if touch starts on a UI element,
+            // but this adds an extra layer for mouse/touch that might drag into the panel.
+            const targetElement = document.elementFromPoint(lastMouseX, lastMouseY); // Use last recorded mouse position
+            if (controlPanelDetails.contains(targetElement) || touchControls.contains(targetElement) || touchWasdControls.contains(targetElement)) {
+                // If the panel is open and the interaction ended on the panel, do nothing.
+                // Reset aiming/dragging states if they were active.
+                isAiming = false;
+                isCatapultDragging = false;
+                removeSlingshotVisuals();
+                return;
+            }
+
+
+            if (button === 0) { // Left mouse button release / Primary touch release
+                if (isAiming && currentBird) { // If we were aiming, launch the bird
+                    isAiming = false;
+
+                    // Determine launch direction from aiming arrow
+                    const launchDirection = new THREE.Vector3();
+                    if (aimingArrow && aimingArrow.visible && targetMark && targetMark.visible) {
+                        launchDirection.copy(targetMark.position).sub(slingshotOrigin).normalize();
+                    } else {
+                        // Fallback: launch straight forward from cannon barrel's current world direction
+                        const cannonBarrelMesh = catapultMesh.children.find(child => child.name === 'cannonBarrel');
+                        if (cannonBarrelMesh) {
+                            // Get the barrel's world forward direction (its local -Z after its initial rotation)
+                            cannonBarrelMesh.getWorldDirection(launchDirection);
+                            launchDirection.negate(); // The barrel's default forward is -Z, so we want to shoot along that.
+                        } else {
+                            // Ultimate fallback: straight forward from catapult's Y rotation
+                            launchDirection.set(0, 0, -1).applyQuaternion(catapultMesh.quaternion).normalize();
+                        }
+                    }
+
+                    // Apply power level to launch force
+                    let effectiveLaunchForceScale = params.launchForceScale;
+                    if (params.powerLevel === 2) {
+                        effectiveLaunchForceScale *= 1.5; // 50% more force
+                    } else if (params.powerLevel === 3) {
+                        effectiveLaunchForceScale *= 2.5; // 150% more force
+                    }
+
+                    // For point-and-shoot, we use a fixed "pull distance" (e.g., maxPullDistance)
+                    // or a base force, scaled by power level. Let's use maxPullDistance as a base.
+                    const baseLaunchMultiplier = 1; // A base multiplier for the force
+                    const totalForce = launchDirection.multiplyScalar(baseLaunchMultiplier * effectiveLaunchForceScale * currentBird.body.mass);
+
+                    // No need to wake up if we're manually holding it and not putting to sleep
+                    currentBird.body.applyImpulse(new CANNON.Vec3(totalForce.x, totalForce.y, totalForce.z), currentBird.body.position);
+                    currentBird.body.angularVelocity.set(Math.random() * 5, Math.random() * 5, Math.random() * 5);
+
+                    removeSlingshotVisuals();
+
+                    // Tries are now decremented when the bird settles or goes out of bounds.
+                    // This ensures scoring is counted before a 'try' is fully consumed.
+                    triesLeft--;
+                    updateTriesDisplay(); // Update display immediately after try is used
+                }
+                if (isCatapultDragging) { // If we were dragging the catapult, stop
+                    isCatapultDragging = false;
+                }
+                // isRotatingCamera is handled by button toggle for touch
+            } else if (button === 2) { // Right mouse button release
+                isRotatingCamera = false; // Always reset for mouse right click
+            }
+        }
+
+        // Mouse Event Listeners
+        renderer.domElement.addEventListener('mousedown', (event) => handleMouseDown(event.clientX, event.clientY, event.button));
+        renderer.domElement.addEventListener('mousemove', (event) => handleMouseMove(event.clientX, event.clientY));
+        renderer.domElement.addEventListener('mouseup', (event) => handleMouseUp(event.button));
+        renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Touch Event Listeners
+        let activeTouchId = null; // To track the primary touch for aiming/dragging
+        const touchMoveCatapultButton = document.getElementById('touch-move-catapult');
+        const touchRotateCameraButton = document.getElementById('touch-rotate-camera');
+        const touchMoveUp = document.getElementById('touch-move-up');
+        const touchMoveLeft = document.getElementById('touch-move-left');
+        const touchMoveDown = document.getElementById('touch-move-down');
+        const touchMoveRight = document.getElementById('touch-move-right');
+
+        // Toggle F mode
+        touchMoveCatapultButton.addEventListener('touchstart', (event) => {
+            event.preventDefault(); // Prevent default browser touch behavior
+            isFKeyDown = !isFKeyDown; // Toggle F key state
+            if (isFKeyDown) {
+                touchMoveCatapultButton.classList.add('active');
+                isRotatingCamera = false; // Deactivate other mode
+                touchRotateCameraButton.classList.remove('active');
+            } else {
+                touchMoveCatapultButton.classList.remove('active');
+            }
+        });
+
+        // Toggle Rotate Camera mode
+        touchRotateCameraButton.addEventListener('touchstart', (event) => {
+            event.preventDefault(); // Prevent default browser touch behavior
+            isRotatingCamera = !isRotatingCamera; // Toggle camera rotation state
+            if (isRotatingCamera) {
+                touchRotateCameraButton.classList.add('active');
+                isFKeyDown = false; // Deactivate other mode
+                touchMoveCatapultButton.classList.remove('active');
+            } else {
+                touchRotateCameraButton.classList.remove('active');
+            }
+        });
+
+        // WASD Touch Controls
+        touchMoveUp.addEventListener('touchstart', (e) => { e.preventDefault(); keys.w = true; });
+        touchMoveUp.addEventListener('touchend', (e) => { e.preventDefault(); keys.w = false; });
+        touchMoveLeft.addEventListener('touchstart', (e) => { e.preventDefault(); keys.a = true; });
+        touchMoveLeft.addEventListener('touchend', (e) => { e.preventDefault(); keys.a = false; });
+        touchMoveDown.addEventListener('touchstart', (e) => { e.preventDefault(); keys.s = true; });
+        touchMoveDown.addEventListener('touchend', (e) => { e.preventDefault(); keys.s = false; });
+        touchMoveRight.addEventListener('touchstart', (e) => { e.preventDefault(); keys.d = true; });
+        touchMoveRight.addEventListener('touchend', (e) => { e.preventDefault(); keys.d = false; });
+
+
+        renderer.domElement.addEventListener('touchstart', (event) => {
+            event.preventDefault(); // Prevent scrolling/zooming
+
+            // Only process the first touch that starts on the canvas and isn't on a UI element
+            if (event.touches.length === 1 && activeTouchId === null) {
+                const touch = event.touches[0];
+                const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+
+                // Check if the touch started on a UI element (control panel, buttons)
+                const controlPanelDetails = document.getElementById('control-panel-details'); // Get the details element
+                const touchControls = document.getElementById('touch-controls');
+                const touchWasdControls = document.getElementById('touch-wasd-controls');
+                if (controlPanelDetails.contains(targetElement) || touchControls.contains(targetElement) || touchWasdControls.contains(targetElement) || nextLevelMessage.contains(targetElement) || goldenBlockMessage.contains(targetElement)) {
+                    // Touch started on a UI element, let the UI element handle it.
+                    // Don't set activeTouchId for game interaction.
+                    return;
+                }
+
+                activeTouchId = touch.identifier;
+                handleMouseDown(touch.clientX, touch.clientY, 0); // Simulate left click
+            }
+        }, { passive: false }); // { passive: false } is important for preventDefault
+
+        renderer.domElement.addEventListener('touchmove', (event) => {
+            event.preventDefault(); // Prevent scrolling/zooming
+
+            for (let i = 0; i < event.touches.length; i++) {
+                if (event.touches[i].identifier === activeTouchId) {
+                    handleMouseMove(event.touches[i].clientX, event.touches[i].clientY);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        renderer.domElement.addEventListener('touchend', (event) => {
+            event.preventDefault(); // Prevent default touch behavior
+
+            let foundActiveTouch = false;
+            for (let i = 0; i < event.changedTouches.length; i++) {
+                if (event.changedTouches[i].identifier === activeTouchId) {
+                    handleMouseUp(0); // Simulate left click release
+                    activeTouchId = null; // Clear the active touch
+                    foundActiveTouch = true;
+                    break;
+                }
+            }
+            // If the primary touch was lifted, and there are other touches remaining,
+            // we might want to consider them for new interactions, but for simplicity
+            // in this example, we only allow one primary interaction at a time.
+            if (!foundActiveTouch && event.touches.length > 0) {
+                 // Potentially start a new interaction with a remaining touch if needed
+                 // For now, we'll let it be.
+            }
+        });
+
+        // Add event listener for the "Go to Next Level" button
+        nextLevelBtn.addEventListener('click', () => {
+            nextLevelMessage.style.display = 'none'; // Hide the pop-up
+            isGamePausedForPopup = false; // Resume game interaction
+            loadNextLevel(); // Load the next level
+        });
+
+        // Add event listener for the "Continue to New Levels" button
+        goldenBlockBtn.addEventListener('click', () => {
+            goldenBlockMessage.style.display = 'none'; // Hide the pop-up
+            isGamePausedForPopup = false; // Resume game interaction
+            // Reset golden block state for the new set of levels
+            params.goldenBlockPlacedThisSet = false;
+            loadNextLevel(); // Load the first level of the new set (level 25)
+        });
+
+        // --- Projectile (Angry Bird with Smiley Face) ---
+        function createSmileyTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+
+            context.beginPath();
+            context.arc(64, 64, 60, 0, Math.PI * 2, false);
+            context.fillStyle = '#f1c40f';
+            context.fill();
+            context.lineWidth = 2;
+            context.strokeStyle = '#000000';
+            context.stroke();
+
+            context.beginPath();
+            context.arc(40, 50, 8, 0, Math.PI * 2, false);
+            context.arc(88, 50, 8, 0, Math.PI * 2, false);
+            context.fillStyle = '#000000';
+            context.fill();
+
+            context.beginPath();
+            context.arc(64, 80, 30, 0, Math.PI, false);
+            context.lineWidth = 5;
+            context.strokeStyle = '#000000';
+            context.stroke();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const smileyTexture = createSmileyTexture();
+
+        function createBird() {
+            let size = params.birdSize;
+            let mass = params.birdMass;
+
+            if (params.powerLevel === 2) {
+                size *= 1.2; // 20% larger
+                mass *= 1.5; // 50% heavier
+            } else if (params.powerLevel === 3) {
+                size *= 1.5; // 50% larger
+                mass *= 2.5; // 150% heavier
+            }
+
+            const geometry = new THREE.SphereGeometry(size, 32, 32);
+            const material = new THREE.MeshStandardMaterial({
+                map: smileyTexture,
+                roughness: 0.6,
+                metalness: 0.2
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            const shape = new CANNON.Sphere(size);
+            const body = new CANNON.Body({ mass, shape, material: defaultMaterial });
+            // Position bird at the current slingshot origin
+            body.position.copy(slingshotOrigin);
+            body.linearDamping = 0.01;
+            body.angularDamping = 0.01;
+            world.addBody(body);
+
+            // Add collision listener for the bird to detect hitting the golden block
+            body.addEventListener('collide', (event) => {
+                const collidedBody = event.body;
+                const collidedBlock = buildingBlocks.find(block => block.body === collidedBody);
+
+                if (collidedBlock && collidedBlock.isGolden && !params.goldenBlockFound) {
+                    params.goldenBlockFound = true; // Mark golden block as found
+                    goldenBlockMessage.style.display = 'block'; // Show golden block message
+                    isGamePausedForPopup = true; // Pause game
+                    // Optionally remove the golden block visuals immediately
+                    scene.remove(collidedBlock.mesh);
+                    world.removeBody(collidedBlock.body);
+                    // Remove from buildingBlocks array
+                    const index = buildingBlocks.indexOf(collidedBlock);
+                    if (index > -1) {
+                        buildingBlocks.splice(index, 1);
+                    }
+                }
+            });
+
+
+            return { mesh, body, type: 'bird', canExplode: true }; // Added canExplode property
+        }
+
+        // --- Pre-built Structures ---
+        const buildingBlocks = [];
+        const balloons = []; // Array to hold balloon objects
+
+        function addBlock(x, y, z, width, height, depth, mass, isGolden = false) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const color = isGolden ? 0xFFD700 : new THREE.Color().setHSL( // Gold color for golden block
+                Math.random(), 0.7, 0.5
+            );
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                roughness: 0.7,
+                metalness: 0.3,
+                wireframe: false
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = false; // Turn off shadows for falling blocks
+            mesh.receiveShadow = false; // Turn off shadows for falling blocks
+            scene.add(mesh);
+
+            const shape = new CANNON.Box(new CANNON.Vec3(width / 2, height / 2, depth / 2));
+            const body = new CANNON.Body({ mass: mass, shape, material: defaultMaterial });
+            body.position.copy(mesh.position);
+            body.linearDamping = 0.05;
+            body.angularDamping = 0.05;
+            body.allowSleep = true;
+            body.sleepState = CANNON.Body.SLEEPING;
+            world.addBody(body);
+
+            const newBlock = { mesh, body, initialPosition: new CANNON.Vec3(x, y, z), scored: false, isGolden: isGolden };
+            buildingBlocks.push(newBlock);
+            return newBlock; // Return the created block object
+        }
+
+        function createStandardBuilding(positionOffset) {
+            const buildingWidth = 5;
+            const buildingHeight = 3;
+            const buildingDepth = 2;
+            const blockSize = params.buildingBlockSize;
+            const blockOffset = 0.1;
+
+            const startX = positionOffset.x - (buildingWidth * (blockSize + blockOffset)) / 2;
+            const startZ = positionOffset.z - (buildingDepth * (blockSize + blockOffset)) / 2;
+            const startY = groundBody.position.y + blockSize / 2 + 0.1;
+
+            for (let y = 0; y < buildingHeight; y++) {
+                for (let z = 0; z < buildingDepth; z++) {
+                    for (let x = 0; x < buildingWidth; x++) {
+                        addBlock(
+                            startX + x * (blockSize + blockOffset) + blockSize / 2,
+                            startY + y * (blockSize + blockOffset),
+                            startZ + z * (blockSize + blockOffset) + blockSize / 2,
+                            blockSize, blockSize, blockSize,
+                            params.blockMass
+                        );
+                    }
+                }
+            }
+        }
+
+        function createTower(positionOffset, height, baseWidth, isHuge = false) {
+            const blockSize = isHuge ? params.towerBlockSize : params.buildingBlockSize;
+            const blockMass = isHuge ? params.towerBlockMass : params.blockMass;
+            const blockOffset = 0.1;
+
+            const startX = positionOffset.x - (baseWidth * (blockSize + blockOffset)) / 2;
+            const startZ = positionOffset.z - (baseWidth * (blockSize + blockOffset)) / 2;
+            const startY = groundBody.position.y + blockSize / 2 + 0.1;
+
+            for (let y = 0; y < height; y++) {
+                for (let z = 0; z < baseWidth; z++) {
+                    for (let x = 0; x < baseWidth; x++) {
+                        addBlock(
+                            startX + x * (blockSize + blockOffset) + blockSize / 2,
+                            startY + y * (blockSize + blockOffset),
+                            startZ + z * (blockSize + blockOffset) + blockSize / 2,
+                            blockSize, blockSize, blockSize,
+                            blockMass
+                        );
+                    }
+                }
+            }
+        }
+
+        function createLongTallTower(positionOffset, numBlocks = 1) {
+            const blockSize = params.longTallBlockSize;
+            const blockMass = params.towerBlockMass;
+            const blockOffset = 0.1;
+
+            for (let i = 0; i < numBlocks; i++) {
+                addBlock(
+                    positionOffset.x,
+                    groundBody.position.y + blockSize.height / 2 + blockOffset + (i * (blockSize.height + blockOffset)),
+                    positionOffset.z,
+                    blockSize.width,
+                    blockSize.height,
+                    blockSize.depth,
+                    blockMass
+                );
+            }
+        }
+
+        // New function to create a line of domino-like tall blocks (kept for specific levels if needed, but removed from random)
+        function createDominoLine(startPos, numDominos, spacing, rotationY = 0) {
+            const blockSize = params.longTallBlockSize;
+            const blockMass = params.towerBlockMass;
+            const blockOffset = 0.1; // Small offset between blocks
+
+            for (let i = 0; i < numDominos; i++) {
+                let x = startPos.x + i * (blockSize.depth + spacing); // Using depth for spacing along X if rotated
+                let z = startPos.z;
+
+                // Apply rotation if needed (for now, assuming rotation around Y)
+                if (rotationY !== 0) {
+                    const originalX = x;
+                    const originalZ = z;
+                    x = startPos.x + (originalX - startPos.x) * Math.cos(rotationY) - (originalZ - startPos.z) * Math.sin(rotationY);
+                    z = startPos.z + (originalX - startPos.x) * Math.sin(rotationY) + (originalZ - startPos.z) * Math.cos(rotationY);
+                }
+
+                const block = addBlock(
+                    x,
+                    groundBody.position.y + blockSize.height / 2 + blockOffset,
+                    z,
+                    blockSize.width,
+                    blockSize.height,
+                    blockSize.depth,
+                    blockMass
+                );
+                // Manually set initial rotation for domino effect
+                if (rotationY !== 0) {
+                    block.body.quaternion.setFromEuler(0, rotationY, 0);
+                }
+            }
+        }
+
+        // Function to create a random structure (without dominoes for later levels)
+        function createRandomStructure(positionOffset) {
+            const structureType = Math.floor(Math.random() * 3); // 0: Standard, 1: Tower, 2: Long Tall
+
+            switch (structureType) {
+                case 0: // Standard Building
+                    createStandardBuilding(positionOffset);
+                    break;
+                case 1: // Tower
+                    const towerHeight = Math.floor(Math.random() * 8) + 5; // 5 to 12 blocks high (taller)
+                    const towerBaseWidth = Math.floor(Math.random() * 2) + 1; // 1 or 2 blocks wide
+                    createTower(positionOffset, towerHeight, towerBaseWidth, towerBaseWidth === 2);
+                    break;
+                case 2: // Long Tall Tower
+                    const numLongTall = Math.floor(Math.random() * 4) + 2; // 2 to 5 blocks (more of them)
+                    createLongTallTower(positionOffset, numLongTall);
+                    break;
+            }
+        }
+
+        function createLevelStructure(level) {
+            // Clear existing blocks
+            buildingBlocks.forEach(obj => {
+                scene.remove(obj.mesh);
+                world.removeBody(obj.body);
+            });
+            buildingBlocks.length = 0;
+
+            // Determine if a golden block should be placed in this level set
+            const isFirstGameSet = currentLevel <= params.maxLevels;
+            if (isFirstGameSet && !params.goldenBlockPlacedThisSet && Math.random() < 0.2) { // 20% chance to place golden block in any level of the first set
+                // Place golden block randomly
+                const goldenX = Math.random() * 80 - 40;
+                const goldenZ = Math.random() * 80 - 40;
+                const goldenY = groundBody.position.y + params.longTallBlockSize.height / 2 + 0.1; // Place it as a long tall block
+                addBlock(goldenX, goldenY, goldenZ, params.longTallBlockSize.width, params.longTallBlockSize.height, params.longTallBlockSize.depth, params.towerBlockMass, true);
+                params.goldenBlockPlacedThisSet = true; // Mark that it's placed for this game set
+            }
+
+
+            // Create structures based on level, with more randomness for later levels
+            if (level <= 3) {
+                switch (level) {
+                    case 1:
+                        // Central tall tower (48 blocks)
+                        createTower(new THREE.Vector3(0, 0, -30), 12, 2, true);
+
+                        // Two standard buildings (30 blocks each)
+                        createStandardBuilding(new THREE.Vector3(40, 0, -10));
+                        createStandardBuilding(new THREE.Vector3(-40, 0, -10));
+
+                        // Domino lines
+                        createDominoLine(new THREE.Vector3(-60, 0, -50), 10, 1.5, Math.PI / 2); // 10 blocks, rotated
+                        createDominoLine(new THREE.Vector3(60, 0, -50), 10, 1.5, -Math.PI / 2); // 10 blocks, rotated
+                        createDominoLine(new THREE.Vector3(0, 0, -100), 15, 1.0, 0); // 15 blocks, straight, more dense
+                        createDominoLine(new THREE.Vector3(-30, 0, -120), 12, 1.2, Math.PI / 8); // 12 blocks, slightly angled
+                        createDominoLine(new THREE.Vector3(30, 0, -120), 12, 1.2, -Math.PI / 8); // 12 blocks, slightly angled
+
+                        // Additional tall blocks for more targets
+                        createLongTallTower(new THREE.Vector3(0, 0, -150), 6); // 6 blocks, very tall
+                        createLongTallTower(new THREE.Vector3(25, 0, -150), 6); // 6 blocks
+                        createLongTallTower(new THREE.Vector3(-25, 0, -150), 6); // 6 blocks
+                        break;
+                    case 2:
+                        // A larger, denser wall of blocks, but with gaps for strategy
+                        const wallBlockSize = params.buildingBlockSize;
+                        const wallOffset = 0.1;
+                        const wallWidth = 14; // Increased width
+                        const wallHeight = 10; // Increased height
+                        const wallDepth = 1; // Thinner wall
+                        for (let y = 0; y < wallHeight; y++) {
+                            for (let x = 0; x < wallWidth; x++) {
+                                // Create some intentional gaps
+                                if (y % 2 === 0 && (x === 3 || x === 8)) continue;
+                                addBlock(
+                                    (x - wallWidth / 2) * (wallBlockSize + wallOffset),
+                                    groundBody.position.y + wallBlockSize / 2 + y * (wallBlockSize + wallOffset),
+                                    -40,
+                                    wallBlockSize, wallBlockSize, wallBlockSize,
+                                    params.blockMass
+                                );
+                            }
+                        }
+                        // Add some additional taller towers behind the wall
+                        createTower(new THREE.Vector3(-50, 0, -70), 8, 2); // 32 blocks
+                        createTower(new THREE.Vector3(50, 0, -70), 8, 2); // 32 blocks
+                        // Add a domino line in front of the wall
+                        createDominoLine(new THREE.Vector3(0, 0, -10), 10, 1.5, 0); // 10 blocks, straight
+                        break;
+                    case 3:
+                        // A more challenging pyramid with a smaller base and taller levels
+                        const pyramidBlockSize = params.buildingBlockSize;
+                        const pyramidOffset = 0.1;
+                        const pyramidLevels = 8; // More levels
+                        for (let level = 0; level < pyramidLevels; level++) {
+                            const blocksInRow = pyramidLevels - level;
+                            const startX = -(blocksInRow * (pyramidBlockSize + pyramidOffset)) / 2;
+                            const startY = groundBody.position.y + pyramidBlockSize / 2 + level * (pyramidBlockSize + pyramidOffset);
+                            for (let x = 0; x < blocksInRow; x++) {
+                                for (let z = 0; z < blocksInRow; z++) {
+                                    addBlock(
+                                        startX + x * (pyramidBlockSize + pyramidOffset) + pyramidBlockSize / 2,
+                                        startY,
+                                        (z - blocksInRow / 2) * (pyramidBlockSize + pyramidOffset) - 20, // Shifted back
+                                        pyramidBlockSize, pyramidBlockSize, pyramidBlockSize,
+                                        params.blockMass * 1.2
+                                    );
+                                }
+                            }
+                        }
+                        // Add more flanking tall towers instead of dominoes
+                        createTower(new THREE.Vector3(70, 0, -30), 10, 2, true); // Taller tower
+                        createTower(new THREE.Vector3(-70, 0, -30), 10, 2, true); // Taller tower
+                        createTower(new THREE.Vector3(0, 0, -50), 8, 3, true); // New central tower
+                        createTower(new THREE.Vector3(0, 0, -90), 8, 3, true); // New central tower
+                        break;
+                }
+            } else {
+                // Generic randomized levels for levels 4 onwards (including the golden block levels)
+                let attempts = 0;
+                const maxAttempts = 50; // Prevent infinite loops in case of very small structures
+                while (buildingBlocks.length < 100 && attempts < maxAttempts) {
+                    const posX = Math.random() * 100 - 50;
+                    const posZ = Math.random() * 100 - 50;
+                    createRandomStructure(new THREE.Vector3(posX, 0, posZ)); // Calls createRandomStructure which now excludes dominoes
+                    attempts++;
+                }
+                // If after maxAttempts, we still don't have 100 blocks, add some guaranteed structures
+                while (buildingBlocks.length < 100) {
+                    // Add a tall tower if we are still short
+                    const posX = Math.random() * 100 - 50;
+                    const posZ = Math.random() * 100 - 50;
+                    createTower(new THREE.Vector3(posX, 0, posZ), 10, 2, true); // Add a 40-block tower
+                }
+            }
+        }
+
+        function loadNextLevel() {
+            if (currentLevel < params.totalLevels) { // Check against totalLevels
+                currentLevel++;
+                blocksKnockedDown = 0;
+                triesLeft = params.maxTries;
+                updateScoreDisplay();
+                updateTriesDisplay();
+                updateLevelDisplay();
+                createLevelStructure(currentLevel);
+            } else {
+                // If all 48 levels are cleared, truly end the game
+                endGame();
+            }
+        }
+
+        function endGame() {
+            gameOver = true;
+            isGamePausedForPopup = true; // Pause game interactions
+            // Hide game UI
+            document.getElementById('game-info').style.display = 'none';
+            document.getElementById('score-display').style.display = 'none';
+            document.getElementById('tries-display').style.display = 'none';
+            document.getElementById('level-display').style.display = 'none';
+            document.querySelector('.control-panel').style.display = 'none';
+            document.getElementById('controls-info').style.display = 'none';
+            gameOverMessage.style.display = 'none'; // Ensure game over message is hidden
+            nextLevelMessage.style.display = 'none'; // Ensure next level message is hidden
+            goldenBlockMessage.style.display = 'none'; // Ensure golden block message is hidden
+
+            endGameMessage.innerHTML = "You indeed, are a scholar and a gentleman,<br>now gtfooh!";
+            endGameMessage.style.display = 'block';
+
+            // Create balloons
+            for (let i = 0; i < 30; i++) {
+                createBalloon();
+            }
+        }
+
+        // --- Balloon Creation ---
+        function createBalloonTexture(color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+
+            // Balloon body (oval shape)
+            context.beginPath();
+            context.ellipse(64, 50, 40, 60, 0, 0, Math.PI * 2);
+            context.fillStyle = color;
+            context.fill();
+            context.lineWidth = 2;
+            context.strokeStyle = 'black';
+            context.stroke();
+
+            // Balloon knot (triangle)
+            context.beginPath();
+            context.moveTo(64, 110);
+            context.lineTo(59, 118);
+            context.lineTo(69, 118);
+            context.closePath();
+            context.fillStyle = color;
+            context.fill();
+            context.strokeStyle = 'black';
+            context.lineWidth = 1;
+            context.stroke();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createBalloon() {
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            const balloonTexture = createBalloonTexture(randomColor);
+
+            const geometry = new THREE.SphereGeometry(6, 32, 32); // Slightly larger sphere
+            const material = new THREE.MeshStandardMaterial({
+                map: balloonTexture,
+                transparent: true,
+                opacity: 0.9,
+                roughness: 0.5,
+                metalness: 0.1
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(Math.random() * 100 - 50, groundBody.position.y + 10, Math.random() * 100 - 50); // Random start position
+            scene.add(mesh);
+
+            const shape = new CANNON.Sphere(6);
+            const body = new CANNON.Body({ mass: 0.1, shape, material: defaultMaterial }); // Very light mass
+            body.position.copy(mesh.position);
+            body.linearDamping = 0.9; // High damping to simulate air resistance
+            body.angularDamping = 0.9;
+            world.addBody(body);
+
+            balloons.push({ mesh, body });
+        }
+
+
+        // Function to update slingshot position and related visuals
+        function updateSlingshotPosition() {
+            // Update catapult mesh position and rotation
+            if (catapultMesh) {
+                // Use params.slingshotPosY directly for the Y position
+                catapultMesh.position.set(params.slingshotPosX, params.slingshotPosY, params.slingshotPosZ);
+                catapultMesh.rotation.y = params.slingshotRotationY;
+
+                // Update world matrix to ensure local offsets are correctly applied
+                catapultMesh.updateMatrixWorld();
+
+                // Calculate slingshot origin and post positions relative to the catapult's transformed position
+                // For a cannon, the "slingshot origin" is the end of the barrel
+                const localSlingshotOriginOffset = new THREE.Vector3(0, 10, -37.5); // Adjust to be at the end of the cannon barrel
+                slingshotOrigin.copy(localSlingshotOriginOffset).applyMatrix4(catapultMesh.matrixWorld);
+
+                // Slingshot posts are not directly relevant for a cannon, but we keep the variables
+                // and set them to the cannon's barrel end for consistency if bands are drawn.
+                slingshotPost1.copy(slingshotOrigin);
+                slingshotPost2.copy(slingshotOrigin);
+            }
+
+            // If a bird is currently being aimed, update its position to the new slingshot origin
+            if (currentBird && isAiming) {
+                currentBird.body.position.copy(slingshotOrigin);
+                currentBird.mesh.position.copy(slingshotOrigin);
+                // Slingshot bands are removed for cannon
+                if (aimingArrow) {
+                    aimingArrow.position.copy(slingshotOrigin); // Arrow originates from cannon barrel
+                }
+            }
+        }
+
+        // --- Score System ---
+        function updateScoreDisplay() {
+            document.getElementById('score-display').textContent = `Blocks Down: ${blocksKnockedDown}`;
+        }
+
+        function updateTriesDisplay() {
+            document.getElementById('tries-display').textContent = `Tries Left: ${triesLeft}`;
+        }
+
+        function updateLevelDisplay() {
+            document.getElementById('level-display').textContent = `Level: ${currentLevel}`;
+        }
+
+        function checkKnockedDownBlocks() {
+            buildingBlocks.forEach(block => {
+                if (!block.scored && block.body.sleepState !== CANNON.Body.SLEEPING) {
+                    const displacementThreshold = block.mesh.geometry.parameters.width * 1.5;
+
+                    const distance = block.body.position.distanceTo(block.initialPosition);
+
+                    if (distance > displacementThreshold) {
+                        blocksKnockedDown++;
+                        block.scored = true;
+                        updateScoreDisplay();
+                        block.mesh.material.color.set(0x2ecc71);
+                    }
+                }
+            });
+        }
+
+        // --- Helpers ---
+        function resetGame() {
+            if (currentBird) {
+                scene.remove(currentBird.mesh);
+                world.removeBody(currentBird.body);
+                currentBird = null;
+            }
+            removeSlingshotVisuals();
+
+            // Clear all balloons if present
+            balloons.forEach(balloon => {
+                scene.remove(balloon.mesh);
+                world.removeBody(balloon.body);
+            });
+            balloons.length = 0;
+
+            // Remove existing catapult mesh if it exists
+            if (catapultMesh) {
+                scene.remove(catapultMesh);
+            }
+
+            // Create a cannon visual
+            catapultMesh = new THREE.Group();
+
+            // Cannon Base
+            const cannonBaseGeometry = new THREE.BoxGeometry(20, 8, 15);
+            const cannonBaseMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.7 }); // Dark grey
+            const cannonBaseMesh = new THREE.Mesh(cannonBaseGeometry, cannonBaseMaterial);
+            cannonBaseMesh.position.set(0, 4, 0);
+            catapultMesh.add(cannonBaseMesh);
+
+            // Cannon Barrel
+            const cannonBarrelGeometry = new THREE.CylinderGeometry(4, 5, 40, 16); // Wider at base, longer
+            const cannonBarrelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.7 }); // Darker grey
+            const cannonBarrelMesh = new THREE.Mesh(cannonBarrelGeometry, cannonBarrelMaterial);
+            cannonBarrelMesh.rotation.x = Math.PI / 2; // Point forward (along local -Z after this rotation)
+            cannonBarrelMesh.position.set(0, 10, -17.5); // Position barrel above base, slightly forward
+            cannonBarrelMesh.name = 'cannonBarrel'; // Give the barrel a name for easy lookup
+            catapultMesh.add(cannonBarrelMesh);
+
+            catapultMesh.castShadow = true;
+            catapultMesh.receiveShadow = true;
+
+            scene.add(catapultMesh);
+
+
+            currentLevel = 1;
+            blocksKnockedDown = 0;
+            triesLeft = params.maxTries;
+            gameOver = false;
+            isGamePausedForPopup = false; // Reset on game start
+            params.goldenBlockFound = false; // Reset golden block state for new game
+            params.goldenBlockPlacedThisSet = false; // Reset golden block placement for new game
+            gameOverMessage.style.display = 'none';
+            endGameMessage.style.display = 'none'; // Hide end game message
+            nextLevelMessage.style.display = 'none'; // Ensure next level message is hidden
+            goldenBlockMessage.style.display = 'none'; // Ensure golden block message is hidden
+            document.getElementById('game-info').style.display = 'block'; // Show game UI
+            document.getElementById('score-display').style.display = 'block';
+            document.getElementById('tries-display').style.display = 'block';
+            document.getElementById('level-display').style.display = 'block';
+            // document.querySelector('.control-panel').style.display = 'block'; // Handled by details element now
+            document.getElementById('controls-info').style.display = 'block';
+
+            // Reset touch button states
+            isFKeyDown = false;
+            isRotatingCamera = false;
+            touchMoveCatapultButton.classList.remove('active');
+            touchRotateCameraButton.classList.remove('active');
+            // Also reset WASD keys
+            keys.w = false;
+            keys.a = false;
+            keys.s = false;
+            keys.d = false;
+
+            // Ensure canvas can receive keyboard input immediately
+            renderer.domElement.tabIndex = 1;
+            renderer.domElement.focus();
+
+            createLevelStructure(currentLevel); // Start game at level 1
+            updateScoreDisplay();
+            updateTriesDisplay();
+            updateLevelDisplay();
+            updateSlingshotPosition(); // Set initial catapult position
+            updateControlPanelState(); // Initialize control panel state on reset
+        }
+
+        // --- UI Controls (simplified) ---
+        document.getElementById('gravity').addEventListener('input', (e) => {
+            params.gravity = parseFloat(e.target.value);
+            document.getElementById('gravity-value').textContent = params.gravity;
+            world.gravity.set(0, -params.gravity, 0);
+        });
+
+        document.getElementById('slingshotPosX').addEventListener('input', (e) => {
+            params.slingshotPosX = parseFloat(e.target.value);
+            document.getElementById('slingshotPosX-value').textContent = params.slingshotPosX;
+            updateSlingshotPosition();
+        });
+        document.getElementById('slingshotPosY').addEventListener('input', (e) => {
+            params.slingshotPosY = parseFloat(e.target.value);
+            document.getElementById('slingshotPosY-value').textContent = params.slingshotPosY;
+            updateSlingshotPosition();
+        });
+        document.getElementById('slingshotPosZ').addEventListener('input', (e) => {
+            params.slingshotPosZ = parseFloat(e.target.value);
+            document.getElementById('slingshotPosZ-value').textContent = params.slingshotPosZ;
+            updateSlingshotPosition();
+        });
+        document.getElementById('slingshotRotationY').addEventListener('input', (e) => {
+            params.slingshotRotationY = parseFloat(e.target.value);
+            document.getElementById('slingshotRotationY-value').textContent = params.slingshotRotationY.toFixed(2);
+            updateSlingshotPosition();
+        });
+        document.getElementById('powerLevel').addEventListener('input', (e) => {
+            params.powerLevel = parseInt(e.target.value);
+            document.getElementById('powerLevel-value').textContent = params.powerLevel;
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', resetGame);
+
+        setTimeout(() => {
+            document.getElementById('game-info').style.opacity = '0';
+        }, 5000);
+
+        // --- Control Panel Toggle Logic ---
+        const controlPanelDetails = document.getElementById('control-panel-details');
+        const toggleIcon = document.getElementById('toggle-icon');
+
+        function updateControlPanelState() {
+            if (window.innerWidth < 768) { // Example breakpoint for mobile
+                controlPanelDetails.open = false; // Start minimized on mobile
+                toggleIcon.textContent = '▲';
+            } else {
+                controlPanelDetails.open = true; // Start maximized on desktop
+                toggleIcon.textContent = '▼';
+            }
+        }
+
+        // Add event listener for toggle
+        controlPanelDetails.addEventListener('toggle', () => {
+            if (controlPanelDetails.open) {
+                toggleIcon.textContent = '▼';
+            } else {
+                toggleIcon.textContent = '▲';
+            }
+        });
+
+
+        // --- Animation Loop ---
+        let lastTime;
+        const fixedTimeStep = 1 / 60;
+        let accumulator = 0;
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            if (lastTime !== undefined) {
+                const deltaTime = (time - lastTime) / 1000;
+                accumulator += deltaTime;
+
+                while (accumulator >= fixedTimeStep) {
+                    world.step(fixedTimeStep);
+                    accumulator -= fixedTimeStep;
+                }
+            }
+            lastTime = time;
+
+            const moveVector = new THREE.Vector3();
+            // WASD movement for keyboard users and touch WASD buttons
+            if (keys.w) moveVector.z -= params.cameraMoveSpeed;
+            if (keys.s) moveVector.z += params.cameraMoveSpeed;
+            if (keys.a) moveVector.x -= params.cameraMoveSpeed;
+            if (keys.d) moveVector.x += params.cameraMoveSpeed;
+
+            moveVector.applyQuaternion(camera.quaternion);
+            camera.position.add(moveVector);
+
+            if (currentBird) {
+                if (isAiming) {
+                    // Manually hold the bird at the slingshot origin while aiming
+                    currentBird.body.position.copy(slingshotOrigin);
+                    currentBird.mesh.position.copy(slingshotOrigin);
+                    // Also reset its velocity to prevent it from drifting due to physics
+                    currentBird.body.velocity.set(0, 0, 0);
+                    currentBird.body.angularVelocity.set(0, 0, 0);
+                } else {
+                    // If not aiming, let physics take over
+                    currentBird.mesh.position.copy(currentBird.body.position);
+                    currentBird.mesh.quaternion.copy(currentBird.body.quaternion);
+                }
+
+
+                // Check if bird is out of bounds or settled, then allow new shot
+                if (currentBird.body.position.y < groundBody.position.y - 10 || // Fell off platform
+                    currentBird.body.position.distanceTo(slingshotOrigin) > 100 || // Far away from slingshot
+                    (currentBird.body.velocity.length() < 0.1 && currentBird.body.sleepState === CANNON.Body.SLEEPING && currentBird.body.position.distanceTo(slingshotOrigin) > params.birdSize * 2) // Settled AND far enough away
+                    ) {
+                    if (!currentBird.settledTimer) {
+                        currentBird.settledTimer = setTimeout(() => {
+                            scene.remove(currentBird.mesh);
+                            world.removeBody(currentBird.body);
+                            currentBird = null;
+                            // Tries are decremented in handleMouseUp now.
+                            // The game over check is now done after all objects settle.
+                        }, 500);
+                    }
+                }
+            }
+
+            buildingBlocks.forEach(obj => {
+                obj.mesh.position.copy(obj.body.position);
+                obj.mesh.quaternion.copy(obj.body.quaternion);
+            });
+
+            // Animate balloons
+            balloons.forEach(balloon => {
+                balloon.body.applyForce(new CANNON.Vec3(0, 0.5, 0), balloon.body.position); // Upward force
+                balloon.mesh.position.copy(balloon.body.position);
+                balloon.mesh.quaternion.copy(balloon.body.quaternion);
+            });
+
+            checkKnockedDownBlocks(); // This will update blocksKnockedDown
+
+            // --- Game End Condition Check (Win or Lose) ---
+            if (!gameOver && currentLevel <= params.totalLevels) { // Check against totalLevels
+                // 1. Check for win condition first - show pop-up immediately if score is met
+                if (blocksKnockedDown >= params.blocksToNextLevel) {
+                    if (currentLevel < params.totalLevels) { // Check against totalLevels
+                        // If score is met and it's not the final level, show the "Next Level" pop-up
+                        if (nextLevelMessage.style.display === 'none' && goldenBlockMessage.style.display === 'none') { // Only show if not already visible and no golden block message
+                            nextLevelMessage.style.display = 'block';
+                            isGamePausedForPopup = true; // Pause game interactions
+                        }
+                    } else {
+                        // If all 48 levels are cleared, truly end the game
+                        endGame();
+                    }
+                }
+
+                // Check if all objects have settled before checking lose conditions
+                let allObjectsSettled = true;
+                if (currentBird) {
+                    allObjectsSettled = false;
+                } else {
+                    for (const block of buildingBlocks) {
+                        // Check if any block is still moving significantly
+                        if (block.body.sleepState !== CANNON.Body.SLEEPING || block.body.velocity.length() > 0.1) {
+                            allObjectsSettled = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (allObjectsSettled) {
+                    // If objects are settled AND we are in a lose state (triesLeft <= 0), show game over
+                    if (triesLeft <= 0 && blocksKnockedDown < params.blocksToNextLevel) { // Lose condition
+                        if (currentLevel === params.maxLevels && !params.goldenBlockFound) { // Special message for level 24 if golden block not found
+                            gameOver = true;
+                            isGamePausedForPopup = true;
+                            gameOverMessage.innerHTML = "Can you find the golden block?";
+                            gameOverMessage.style.display = 'block';
+                        } else if (currentLevel < params.totalLevels) { // Normal game over before final level
+                            gameOver = true;
+                            gameOverMessage.innerHTML = "Game Over!";
+                            gameOverMessage.style.display = 'block';
+                            isGamePausedForPopup = true;
+                        } else { // True end game if all levels are cleared
+                            endGame();
+                        }
+                    }
+                }
+            }
+
+            animateLavaLamp();
+            renderer.render(scene, camera);
+        }
+
+        resetGame(); // Initialize the game on load to level 1 and create structures
+        requestAnimationFrame(animate);
+
+        // --- Window Resize Handler ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            updateControlPanelState(); // Update control panel state on resize
+        });
+    </script>
+</body>
+</html>
