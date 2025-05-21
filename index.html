@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -171,7 +172,8 @@
         Left Click (Hold & Drag): Aim Slingshot<br>
         Left Click (Release): Launch Bird<br>
         Right Click (Hold & Drag): Rotate Camera<br>
-        WASD: Move Camera
+        WASD: Move Camera<br>
+        Hold 'F' + Left Click (Drag): Move Catapult
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -203,6 +205,7 @@
             blockMass: 0.8,
             cameraRotationSpeed: 0.005,
             cameraMoveSpeed: 1.0,
+            catapultMoveSpeed: 0.1, // Speed for moving the catapult
             towerBlockSize: 8 * 2,
             towerBlockMass: 1.5,
             longTallBlockSize: { width: 4 * 2, height: 40 * 2, depth: 4 * 2 },
@@ -321,6 +324,8 @@
         let currentBird = null;
         let isAiming = false;
         let isRotatingCamera = false;
+        let isFKeyDown = false; // New: state of 'F' key
+        let isCatapultDragging = false; // New: true when F is down and left mouse is dragging
         let initialMousePos = new THREE.Vector2();
         let currentMousePos = new THREE.Vector2();
         let lastMouseX = 0;
@@ -333,6 +338,7 @@
         const slingshotPost2 = new THREE.Vector3(params.slingshotPosX + 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
         let slingshotBand1 = null;
         let slingshotBand2 = null;
+        let catapultMesh = null; // Declare catapult mesh variable
 
         // --- Game Logic Variables ---
         let blocksKnockedDown = 0;
@@ -355,6 +361,7 @@
             if (event.key === 'a') keys.a = true;
             if (event.key === 's') keys.s = true;
             if (event.key === 'd') keys.d = true;
+            if (event.key === 'f' || event.key === 'F') isFKeyDown = true; // Set F key state
         });
 
         window.addEventListener('keyup', (event) => {
@@ -362,6 +369,7 @@
             if (event.key === 'a') keys.a = false;
             if (event.key === 's') keys.s = false;
             if (event.key === 'd') keys.d = false;
+            if (event.key === 'f' || event.key === 'F') isFKeyDown = false; // Clear F key state
         });
 
 
@@ -369,40 +377,45 @@
         function onMouseDown(event) {
             if (gameOver || currentLevel > params.maxLevels) return;
 
-            if (event.button === 0 && !currentBird && triesLeft > 0) {
-                isAiming = true;
-                initialMousePos.set(event.clientX, event.clientY);
+            if (event.button === 0) { // Left mouse button
+                if (isFKeyDown) { // If 'F' is held down, start dragging catapult
+                    isCatapultDragging = true;
+                    lastMouseX = event.clientX;
+                    lastMouseY = event.clientY;
+                } else if (!currentBird && triesLeft > 0) { // Otherwise, if no bird in play, start aiming
+                    isAiming = true;
+                    initialMousePos.set(event.clientX, event.clientY);
 
-                currentBird = createBird();
-                currentBird.body.position.copy(slingshotOrigin);
-                currentBird.mesh.position.copy(slingshotOrigin);
-                currentBird.body.sleepState = CANNON.Body.AWAKE;
+                    currentBird = createBird();
+                    currentBird.body.position.copy(slingshotOrigin);
+                    currentBird.mesh.position.copy(slingshotOrigin);
+                    currentBird.body.sleepState = CANNON.Body.AWAKE;
 
-                const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
-                const linePoints = [];
-                linePoints.push(currentBird.mesh.position.clone());
-                linePoints.push(slingshotOrigin.clone());
-                const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
-                slingshotLine = new THREE.Line(lineGeometry, lineMaterial);
-                scene.add(slingshotLine);
+                    const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
+                    const linePoints = [];
+                    linePoints.push(currentBird.mesh.position.clone());
+                    linePoints.push(slingshotOrigin.clone());
+                    const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+                    slingshotLine = new THREE.Line(lineGeometry, lineMaterial);
+                    scene.add(slingshotLine);
 
-                const bandMaterial = new THREE.LineBasicMaterial({ color: 0x8B4513, linewidth: 8 });
-                const band1Points = [slingshotPost1.clone(), currentBird.mesh.position.clone()];
-                slingshotBand1 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(band1Points), bandMaterial);
-                scene.add(slingshotBand1);
+                    const bandMaterial = new THREE.LineBasicMaterial({ color: 0x8B4513, linewidth: 8 });
+                    const band1Points = [slingshotPost1.clone(), currentBird.mesh.position.clone()];
+                    slingshotBand1 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(band1Points), bandMaterial);
+                    scene.add(slingshotBand1);
 
-                const band2Points = [slingshotPost2.clone(), currentBird.mesh.position.clone()];
-                slingshotBand2 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(band2Points), bandMaterial);
-                scene.add(slingshotBand2);
+                    const band2Points = [slingshotPost2.clone(), currentBird.mesh.position.clone()];
+                    slingshotBand2 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(band2Points), bandMaterial);
+                    scene.add(slingshotBand2);
 
-                const arrowDirection = new THREE.Vector3(0, 0, 0);
-                const arrowOrigin = currentBird.mesh.position.clone();
-                const arrowLength = 10;
-                const arrowColor = 0x00ff00;
-                aimingArrow = new THREE.ArrowHelper(arrowDirection, arrowOrigin, arrowLength, arrowColor, 3, 2);
-                scene.add(aimingArrow);
-
-            } else if (event.button === 2) {
+                    const arrowDirection = new THREE.Vector3(0, 0, 0);
+                    const arrowOrigin = currentBird.mesh.position.clone();
+                    const arrowLength = 10;
+                    const arrowColor = 0x00ff00;
+                    aimingArrow = new THREE.ArrowHelper(arrowDirection, arrowOrigin, arrowLength, arrowColor, 3, 2);
+                    scene.add(aimingArrow);
+                }
+            } else if (event.button === 2) { // Right mouse button for camera rotation
                 isRotatingCamera = true;
                 lastMouseX = event.clientX;
                 lastMouseY = event.clientY;
@@ -476,52 +489,65 @@
 
                 lastMouseX = event.clientX;
                 lastMouseY = event.clientY;
+            } else if (isCatapultDragging) { // Move catapult if 'F' is held and left mouse is dragging
+                const deltaX = event.clientX - lastMouseX;
+                const deltaY = event.clientY - lastMouseY;
+
+                params.slingshotPosX += deltaX * params.catapultMoveSpeed;
+                params.slingshotPosY -= deltaY * params.catapultMoveSpeed; // Invert Y for screen to world
+
+                // Update the actual slingshot origin and posts
+                updateSlingshotPosition();
+
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
             }
         }
 
         function onMouseUp(event) {
             if (gameOver || currentLevel > params.maxLevels) return;
 
-            if (event.button === 0 && isAiming && currentBird) {
-                isAiming = false;
+            if (event.button === 0) { // Left mouse button release
+                if (isAiming && currentBird) { // If we were aiming, launch the bird
+                    isAiming = false;
 
-                const dragVector2D = new THREE.Vector2().subVectors(currentMousePos, initialMousePos);
-                let pullDistance = dragVector2D.length();
+                    const dragVector2D = new THREE.Vector2().subVectors(currentMousePos, initialMousePos);
+                    let pullDistance = dragVector2D.length();
 
-                if (pullDistance < params.minPullDistance) {
-                    scene.remove(currentBird.mesh);
-                    world.removeBody(currentBird.body);
-                    currentBird = null;
+                    if (pullDistance < params.minPullDistance) {
+                        scene.remove(currentBird.mesh);
+                        world.removeBody(currentBird.body);
+                        currentBird = null;
+                        removeSlingshotVisuals();
+                        return;
+                    }
+
+                    if (pullDistance > params.maxPullDistance) {
+                        dragVector2D.setLength(params.maxPullDistance);
+                        pullDistance = params.maxPullDistance;
+                    }
+
+                    const pullBackVector3D = new THREE.Vector3(
+                        dragVector2D.x * 0.5,
+                        -dragVector2D.y * 0.5,
+                        pullDistance * 0.5
+                    );
+                    const launchDirection = pullBackVector3D.clone().negate().normalize();
+
+                    const totalForce = launchDirection.multiplyScalar(pullDistance * params.launchForceScale * currentBird.body.mass);
+
+                    currentBird.body.applyImpulse(new CANNON.Vec3(totalForce.x, totalForce.y, totalForce.z), currentBird.body.position);
+                    currentBird.body.angularVelocity.set(Math.random() * 5, Math.random() * 5, Math.random() * 5);
+
                     removeSlingshotVisuals();
-                    return;
+
+                    // Tries are now decremented when the bird settles or goes out of bounds.
+                    // This ensures scoring is counted before a 'try' is fully consumed.
                 }
-
-                if (pullDistance > params.maxPullDistance) {
-                    dragVector2D.setLength(params.maxPullDistance);
-                    pullDistance = params.maxPullDistance;
+                if (isCatapultDragging) { // If we were dragging the catapult, stop
+                    isCatapultDragging = false;
                 }
-
-                const pullBackVector3D = new THREE.Vector3(
-                    dragVector2D.x * 0.5,
-                    -dragVector2D.y * 0.5,
-                    pullDistance * 0.5
-                );
-                const launchDirection = pullBackVector3D.clone().negate().normalize();
-
-                const totalForce = launchDirection.multiplyScalar(pullDistance * params.launchForceScale * currentBird.body.mass);
-
-                currentBird.body.applyImpulse(new CANNON.Vec3(totalForce.x, totalForce.y, totalForce.z), currentBird.body.position);
-                currentBird.body.angularVelocity.set(Math.random() * 5, Math.random() * 5, Math.random() * 5);
-
-                removeSlingshotVisuals();
-
-                triesLeft--;
-                updateTriesDisplay();
-                if (triesLeft <= 0) {
-                    gameOver = true;
-                    gameOverMessage.style.display = 'block';
-                }
-            } else if (event.button === 2) {
+            } else if (event.button === 2) { // Right mouse button release
                 isRotatingCamera = false;
             }
         }
@@ -722,44 +748,49 @@
                 case 1:
                     createStandardBuilding(new THREE.Vector3(0, 0, 0));
                     createStandardBuilding(new THREE.Vector3(50, 0, -20));
-                    createTower(new THREE.Vector3(-50, 0, -20), 5, 2, true);
-                    let towerSpacing1 = 20;
-                    let towerStartX1 = -100;
+                    createTower(new THREE.Vector3(-50, 0, -20), 8, 3, true); // Increased height and base
+                    let towerSpacing1 = 15; // Decreased spacing
+                    let towerStartX1 = -150; // Wider spread
                     let towerZ1 = -70;
-                    for (let i = 0; i < 15; i++) {
-                        createLongTallTower(new THREE.Vector3(towerStartX1 + i * towerSpacing1, 0, towerZ1), 1);
+                    for (let i = 0; i < 20; i++) { // More towers
+                        createLongTallTower(new THREE.Vector3(towerStartX1 + i * towerSpacing1, 0, towerZ1), 2); // Taller long towers
                     }
-                    let towerSpacing2 = 20;
-                    let towerStartX2 = -120;
+                    let towerSpacing2 = 15;
+                    let towerStartX2 = -180;
                     let towerZ2 = -100;
-                    for (let i = 0; i < 20; i++) {
-                        createLongTallTower(new THREE.Vector3(towerStartX2 + i * towerSpacing2, 0, towerZ2), 2);
+                    for (let i = 0; i < 25; i++) { // Even more towers
+                        createLongTallTower(new THREE.Vector3(towerStartX2 + i * towerSpacing2, 0, towerZ2), 3); // Even taller long towers
                     }
                     break;
                 case 2:
-                    // A wall of blocks
+                    // A larger, denser wall of blocks
                     const wallBlockSize = params.buildingBlockSize;
                     const wallOffset = 0.1;
-                    const wallWidth = 10;
-                    const wallHeight = 5;
-                    const wallDepth = 1;
+                    const wallWidth = 15; // Increased width
+                    const wallHeight = 8; // Increased height
+                    const wallDepth = 2; // Increased depth
                     for (let y = 0; y < wallHeight; y++) {
-                        for (let x = 0; x < wallWidth; x++) {
-                            addBlock(
-                                (x - wallWidth / 2) * (wallBlockSize + wallOffset),
-                                groundBody.position.y + wallBlockSize / 2 + y * (wallBlockSize + wallOffset),
-                                -30,
-                                wallBlockSize, wallBlockSize, wallBlockSize,
-                                params.blockMass
-                            );
+                        for (let z = 0; z < wallDepth; z++) {
+                            for (let x = 0; x < wallWidth; x++) {
+                                addBlock(
+                                    (x - wallWidth / 2) * (wallBlockSize + wallOffset),
+                                    groundBody.position.y + wallBlockSize / 2 + y * (wallBlockSize + wallOffset),
+                                    -30 + z * (wallBlockSize + wallOffset), // Extend in Z
+                                    wallBlockSize, wallBlockSize, wallBlockSize,
+                                    params.blockMass
+                                );
+                            }
                         }
                     }
+                    // Add some additional towers behind the wall
+                    createTower(new THREE.Vector3(-60, 0, -60), 6, 3);
+                    createTower(new THREE.Vector3(60, 0, -60), 6, 3);
                     break;
                 case 3:
-                    // A pyramid
+                    // A larger pyramid
                     const pyramidBlockSize = params.buildingBlockSize * 1.2;
                     const pyramidOffset = 0.2;
-                    const pyramidLevels = 4;
+                    const pyramidLevels = 6; // Increased levels
                     for (let level = 0; level < pyramidLevels; level++) {
                         const blocksInRow = pyramidLevels - level;
                         const startX = -(blocksInRow * (pyramidBlockSize + pyramidOffset)) / 2;
@@ -776,20 +807,28 @@
                             }
                         }
                     }
+                    // Add surrounding structures
+                    createStandardBuilding(new THREE.Vector3(80, 0, 0));
+                    createStandardBuilding(new THREE.Vector3(-80, 0, 0));
+                    createTower(new THREE.Vector3(0, 0, 80), 7, 2, true);
                     break;
                 case 24:
                     // End game level - no blocks, just message and balloons
                     break;
                 default:
                     // Generic level for levels 4-23
-                    const numGenericTowers = Math.floor(Math.random() * 5) + 5; // 5 to 9 towers
-                    const genericTowerHeight = Math.floor(Math.random() * 3) + 3; // 3 to 5 blocks high
-                    const genericSpacing = 30;
+                    const numGenericTowers = Math.floor(Math.random() * 8) + 10; // 10 to 17 towers
+                    const genericTowerHeight = Math.floor(Math.random() * 4) + 4; // 4 to 7 blocks high
+                    const genericBaseWidth = Math.floor(Math.random() * 2) + 2; // 2 or 3 block base
+                    const genericSpacing = 25; // Adjusted spacing
                     const genericStartX = -(numGenericTowers / 2) * genericSpacing;
                     for (let i = 0; i < numGenericTowers; i++) {
-                        createTower(new THREE.Vector3(genericStartX + i * genericSpacing, 0, -50), genericTowerHeight, 2);
+                        createTower(new THREE.Vector3(genericStartX + i * genericSpacing, 0, -50), genericTowerHeight, genericBaseWidth, true);
                     }
-                    createStandardBuilding(new THREE.Vector3(Math.random() * 80 - 40, 0, Math.random() * 40 - 20));
+                    // Add multiple standard buildings
+                    createStandardBuilding(new THREE.Vector3(Math.random() * 100 - 50, 0, Math.random() * 50 - 25));
+                    createStandardBuilding(new THREE.Vector3(Math.random() * 100 - 50, 0, Math.random() * 50 - 25));
+                    createStandardBuilding(new THREE.Vector3(Math.random() * 100 - 50, 0, Math.random() * 50 - 25));
                     break;
             }
         }
@@ -894,12 +933,38 @@
             slingshotPost1.set(params.slingshotPosX - 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
             slingshotPost2.set(params.slingshotPosX + 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
 
-            if (currentBird) {
-                scene.remove(currentBird.mesh);
-                world.removeBody(currentBird.body);
-                currentBird = null;
-                removeSlingshotVisuals();
-                isAiming = false;
+            // Update catapult mesh position
+            if (catapultMesh) {
+                catapultMesh.position.copy(slingshotOrigin);
+                catapultMesh.position.y = params.slingshotPosY - (params.buildingBlockSize / 2); // Adjust y to place it on the ground if needed
+            }
+
+            // If a bird is currently being aimed, update its position relative to the new slingshot origin
+            if (currentBird && isAiming) {
+                currentBird.body.position.copy(slingshotOrigin);
+                currentBird.mesh.position.copy(slingshotOrigin);
+                // Also update the slingshot visuals if they exist
+                if (slingshotLine) {
+                    const positions = slingshotLine.geometry.attributes.position.array;
+                    positions[0] = currentBird.mesh.position.x;
+                    positions[1] = currentBird.mesh.position.y;
+                    positions[2] = currentBird.mesh.position.z;
+                    slingshotLine.geometry.attributes.position.needsUpdate = true;
+                }
+                if (slingshotBand1 && slingshotBand2) {
+                    slingshotBand1.geometry.attributes.position.array[3] = currentBird.mesh.position.x;
+                    slingshotBand1.geometry.attributes.position.array[4] = currentBird.mesh.position.y;
+                    slingshotBand1.geometry.attributes.position.array[5] = currentBird.mesh.position.z;
+                    slingshotBand1.geometry.attributes.position.needsUpdate = true;
+
+                    slingshotBand2.geometry.attributes.position.array[3] = currentBird.mesh.position.x;
+                    slingshotBand2.geometry.attributes.position.array[4] = currentBird.mesh.position.y;
+                    slingshotBand2.geometry.attributes.position.array[5] = currentBird.mesh.position.z;
+                    slingshotBand2.geometry.attributes.position.needsUpdate = true;
+                }
+                if (aimingArrow) {
+                    aimingArrow.position.copy(currentBird.mesh.position);
+                }
             }
         }
 
@@ -932,7 +997,8 @@
                 }
             });
 
-            // Check for level progression
+            // Level progression check moved here to ensure it happens after blocks are counted
+            // and before a potential game over due to tries running out.
             if (blocksKnockedDown >= params.blocksToNextLevel && currentLevel < params.maxLevels) {
                 loadNextLevel();
             } else if (blocksKnockedDown >= params.blocksToNextLevel && currentLevel === params.maxLevels) {
@@ -956,6 +1022,33 @@
             });
             balloons.length = 0;
 
+            // Remove existing catapult mesh if it exists
+            if (catapultMesh) {
+                scene.remove(catapultMesh);
+            }
+
+            // Create a simple catapult visual (e.g., a few cubes)
+            const baseGeometry = new THREE.BoxGeometry(15, 5, 10);
+            const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x6B4226, roughness: 0.7 }); // Brown
+            const baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+
+            const postGeometry = new THREE.BoxGeometry(3, 20, 3);
+            const postMaterial = new THREE.MeshStandardMaterial({ color: 0x6B4226, roughness: 0.7 }); // Brown
+            const post1 = new THREE.Mesh(postGeometry, postMaterial);
+            post1.position.set(-5, 10, -2);
+            const post2 = new THREE.Mesh(postGeometry, postMaterial);
+            post2.position.set(5, 10, -2);
+
+            catapultMesh = new THREE.Group();
+            catapultMesh.add(baseMesh);
+            catapultMesh.add(post1);
+            catapultMesh.add(post2);
+            catapultMesh.castShadow = true;
+            catapultMesh.receiveShadow = true;
+
+            scene.add(catapultMesh);
+
+
             currentLevel = 1;
             blocksKnockedDown = 0;
             triesLeft = params.maxTries;
@@ -969,11 +1062,11 @@
             document.querySelector('.control-panel').style.display = 'block';
             document.getElementById('controls-info').style.display = 'block';
 
-
             createLevelStructure(currentLevel); // Start game at level 1
             updateScoreDisplay();
             updateTriesDisplay();
             updateLevelDisplay();
+            updateSlingshotPosition(); // Set initial catapult position
         }
 
         // --- UI Controls (simplified) ---
@@ -1037,15 +1130,25 @@
                 currentBird.mesh.position.copy(currentBird.body.position);
                 currentBird.mesh.quaternion.copy(currentBird.body.quaternion);
 
-                if (currentBird.body.position.y < groundBody.position.y - 10 ||
-                    currentBird.body.position.distanceTo(slingshotOrigin) > 100 ||
-                    (currentBird.body.velocity.length() < 0.1 && currentBird.body.sleepState === CANNON.Body.SLEEPING && currentBird.body.position.distanceTo(slingshotOrigin) > params.birdSize * 2)
+                // Check if bird is out of bounds or settled, then allow new shot
+                if (currentBird.body.position.y < groundBody.position.y - 10 || // Fell off platform
+                    currentBird.body.position.distanceTo(slingshotOrigin) > 100 || // Far away from slingshot
+                    (currentBird.body.velocity.length() < 0.1 && currentBird.body.sleepState === CANNON.Body.SLEEPING && currentBird.body.position.distanceTo(slingshotOrigin) > params.birdSize * 2) // Settled AND far enough away
                     ) {
                     if (!currentBird.settledTimer) {
                         currentBird.settledTimer = setTimeout(() => {
                             scene.remove(currentBird.mesh);
                             world.removeBody(currentBird.body);
                             currentBird = null;
+
+                            // Decrement tries ONLY AFTER the bird has settled and scoring is processed
+                            triesLeft--;
+                            updateTriesDisplay();
+                            // Check for game over after try is decremented and level progression check
+                            if (triesLeft <= 0 && blocksKnockedDown < params.blocksToNextLevel) { // Only game over if not enough blocks for next level
+                                gameOver = true;
+                                gameOverMessage.style.display = 'block';
+                            }
                         }, 500);
                     }
                 }
@@ -1063,7 +1166,7 @@
                 balloon.mesh.quaternion.copy(balloon.body.quaternion);
             });
 
-            checkKnockedDownBlocks();
+            checkKnockedDownBlocks(); // This will handle level progression
             animateLavaLamp();
             renderer.render(scene, camera);
         }
@@ -1080,3 +1183,4 @@
     </script>
 </body>
 </html>
+```
