@@ -1,0 +1,1383 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Angry Blocks</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            color: white;
+            font-family: 'Inter', sans-serif; /* Using Inter font */
+            transition: background-color 2s ease-in-out;
+            -webkit-user-select: none; /* Disable text selection on iOS */
+            -moz-user-select: none;    /* Disable text selection on Firefox */
+            -ms-user-select: none;     /* Disable text selection on IE/Edge */
+            user-select: none;         /* Disable text selection */
+            -webkit-touch-callout: none; /* Disable callout on iOS */
+            -webkit-tap-highlight-color: rgba(0,0,0,0); /* Disable tap highlight */
+        }
+        canvas {
+            display: block;
+            touch-action: none; /* Prevent default touch actions like scrolling/zooming on the canvas */
+        }
+        #game-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px; /* Rounded corners */
+            font-size: 14px;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px; /* Rounded corners */
+            color: white;
+            font-size: 14px;
+            width: 250px;
+            text-align: center;
+            z-index: 10; /* Ensure it's above the canvas */
+        }
+        .control-panel button {
+            margin-top: 10px;
+            background: #e74c3c; /* Angry Birds red */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); /* Button shadow */
+            -webkit-tap-highlight-color: rgba(0,0,0,0); /* Disable tap highlight */
+        }
+        .control-panel button:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+        .control-panel button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .slider-container input[type="range"] {
+            width: 90%;
+            -webkit-appearance: none;
+            height: 8px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+            border-radius: 4px;
+        }
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e74c3c;
+            cursor: pointer;
+        }
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e74c3c;
+            cursor: pointer;
+        }
+
+        #score-display {
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px; /* Rounded corners */
+            font-size: 20px;
+            font-weight: bold;
+            color: #f1c40f; /* Gold for score */
+        }
+        #tries-display { /* New element for tries */
+            position: absolute;
+            top: 110px; /* Below score */
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #3498db; /* Blue for tries */
+        }
+        #level-display { /* New element for level */
+            position: absolute;
+            top: 160px; /* Below tries */
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #27ae60; /* Green for level */
+        }
+        #controls-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px; /* Rounded corners */
+            font-size: 12px;
+            opacity: 1;
+            pointer-events: none;
+        }
+        #game-over-message { /* New element for game over */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 30px;
+            border-radius: 10px;
+            font-size: 30px;
+            font-weight: bold;
+            color: #e74c3c;
+            text-align: center;
+            display: none; /* Hidden by default */
+            z-index: 100; /* Ensure it's on top */
+        }
+        #end-game-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 40px;
+            border-radius: 15px;
+            font-size: 36px;
+            font-weight: bold;
+            color: #f1c40f;
+            text-align: center;
+            display: none; /* Hidden by default */
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(241, 196, 15, 0.8);
+        }
+        #touch-controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+        .touch-button {
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 15px;
+            border-radius: 50%;
+            font-size: 20px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255,255,255,0.5);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            -webkit-tap-highlight-color: rgba(0,0,0,0); /* Disable tap highlight */
+        }
+        .touch-button.active {
+            background: rgba(255,255,255,0.8);
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-info">Angry Blocks: Knock down the structure!</div>
+    <div id="score-display">Blocks Down: 0</div>
+    <div id="tries-display">Tries Left: 3</div>
+    <div id="level-display">Level: 1</div>
+    <div id="game-over-message">Game Over!</div>
+    <div id="end-game-message"></div>
+
+    <div class="control-panel">
+        <h3>Game Controls</h3>
+        <div class="slider-container">
+            <label for="gravity">Gravity Strength: <span id="gravity-value">9.8</span></label>
+            <input type="range" id="gravity" min="0" max="20" step="0.1" value="9.8">
+        </div>
+        <div class="slider-container">
+            <label for="slingshotPosX">Slingshot X: <span id="slingshotPosX-value">0</span></label>
+            <input type="range" id="slingshotPosX" min="-50" max="50" step="1" value="0">
+        </div>
+        <div class="slider-container">
+            <label for="slingshotPosY">Slingshot Y: <span id="slingshotPosY-value">-14</span></label>
+            <input type="range" id="slingshotPosY" min="-40" max="40" step="1" value="-14">
+        </div>
+        <div class="slider-container">
+            <label for="slingshotPosZ">Slingshot Z: <span id="slingshotPosZ-value">60</span></label>
+            <input type="range" id="slingshotPosZ" min="0" max="100" step="1" value="60">
+        </div>
+        <button id="resetBtn">Reset Game</button>
+    </div>
+
+    <div id="controls-info">
+        Left Click (Hold & Drag): Aim Slingshot<br>
+        Left Click (Release): Launch Bird<br>
+        Right Click (Hold & Drag): Rotate Camera<br>
+        WASD: Move Camera<br>
+        Hold 'F' + Left Click (Drag): Move Catapult
+    </div>
+
+    <div id="touch-controls">
+        <div id="touch-move-catapult" class="touch-button">F</div>
+        <div id="touch-rotate-camera" class="touch-button">↻</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script type="module">
+        import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
+
+        // --- Three.js Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 30, 120);
+        camera.lookAt(0, 10, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Parameters ---
+        const params = {
+            gravity: 9.8,
+            launchForceScale: 25,
+            birdSize: 4,
+            buildingBlockSize: 6 * 2,
+            minPullDistance: 5,
+            maxPullDistance: 30,
+            blockMass: 0.8,
+            cameraRotationSpeed: 0.005,
+            cameraMoveSpeed: 1.0,
+            catapultMoveSpeed: 0.1, // Speed for moving the catapult
+            towerBlockSize: 8 * 2,
+            towerBlockMass: 1.5,
+            longTallBlockSize: { width: 4 * 2, height: 40 * 2, depth: 4 * 2 },
+            maxTries: 3,
+            maxLevels: 24, // Total number of levels
+            blocksToNextLevel: 150, // Blocks needed to advance (increased for every level)
+            slingshotPosX: 0,
+            slingshotPosY: -14,
+            slingshotPosZ: 60
+        };
+
+        // --- Cannon-ES Physics Setup ---
+        const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -params.gravity, 0) });
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+
+        // --- Materials ---
+        const defaultMaterial = new CANNON.Material("defaultMaterial");
+        const defaultContactMaterial = new CANNON.ContactMaterial(
+            defaultMaterial,
+            defaultMaterial,
+            {
+                friction: 0.4,
+                restitution: 0.2
+            }
+        );
+        world.addContactMaterial(defaultContactMaterial);
+        world.defaultContactMaterial = defaultContactMaterial;
+
+        // --- Create a Ground ---
+        const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: defaultMaterial });
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        groundBody.position.y = -20;
+        world.addBody(groundBody);
+
+        const groundGeo = new THREE.PlaneGeometry(2000, 2000, 50, 50);
+        const groundMat = new THREE.MeshStandardMaterial({
+            color: 0x4A4A4A,
+            roughness: 0.8,
+            metalness: 0.2,
+            wireframe: false
+        });
+        const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.position.y = -20;
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+
+        // --- Lighting ---
+        scene.add(new THREE.AmbientLight(0x404040, 2));
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.8);
+        directionalLight.position.set(50, 150, 100);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 400;
+        directionalLight.shadow.camera.left = -100;
+        directionalLight.shadow.camera.right = 100;
+        directionalLight.shadow.camera.top = 100;
+        directionalLight.shadow.camera.bottom = -100;
+        directionalLight.shadow.camera.aspect = 1;
+        scene.add(directionalLight);
+
+        // --- Lava Lamp Background ---
+        const lavaCanvas = document.createElement('canvas');
+        lavaCanvas.width = 256;
+        lavaCanvas.height = 256;
+        const lavaContext = lavaCanvas.getContext('2d');
+        const lavaTexture = new THREE.CanvasTexture(lavaCanvas);
+        scene.background = lavaTexture;
+
+        const blobs = [];
+        const numBlobs = 10;
+        for (let i = 0; i < numBlobs; i++) {
+            blobs.push({
+                x: Math.random() * lavaCanvas.width,
+                y: Math.random() * lavaCanvas.height,
+                radius: Math.random() * 30 + 20,
+                dx: (Math.random() - 0.5) * 2,
+                dy: (Math.random() - 0.5) * 2,
+                color: `hsl(${Math.random() * 360}, 70%, 50%)`
+            });
+        }
+
+        function animateLavaLamp() {
+            lavaContext.clearRect(0, 0, lavaCanvas.width, lavaCanvas.height);
+            lavaContext.filter = 'blur(8px)';
+            lavaContext.globalCompositeOperation = 'lighter';
+
+            for (const blob of blobs) {
+                blob.x += blob.dx;
+                blob.y += blob.dy;
+
+                if (blob.x + blob.radius > lavaCanvas.width || blob.x - blob.radius < 0) {
+                    blob.dx *= -1;
+                }
+                if (blob.y + blob.radius > lavaCanvas.height || blob.y - blob.radius < 0) {
+                    blob.dy *= -1;
+                }
+
+                lavaContext.beginPath();
+                lavaContext.arc(blob.x, blob.y, blob.radius, 0, Math.PI * 2);
+                lavaContext.fillStyle = blob.color;
+                lavaContext.fill();
+            }
+
+            lavaContext.globalCompositeOperation = 'source-over';
+            lavaContext.filter = 'none';
+            lavaTexture.needsUpdate = true;
+        }
+
+
+        // --- Game State Variables ---
+        let currentBird = null;
+        let isAiming = false;
+        let isRotatingCamera = false;
+        let isFKeyDown = false; // New: state of 'F' key
+        let isCatapultDragging = false; // New: true when F is down and left mouse is dragging
+        let initialMousePos = new THREE.Vector2();
+        let currentMousePos = new THREE.Vector2();
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let slingshotLine = null;
+        let aimingArrow = null;
+        const slingshotOrigin = new THREE.Vector3(params.slingshotPosX, params.slingshotPosY, params.slingshotPosZ);
+
+        const slingshotPost1 = new THREE.Vector3(params.slingshotPosX - 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
+        const slingshotPost2 = new THREE.Vector3(params.slingshotPosX + 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
+        let slingshotBand1 = null;
+        let slingshotBand2 = null;
+        let catapultMesh = null; // Declare catapult mesh variable
+
+        // --- Game Logic Variables ---
+        let blocksKnockedDown = 0;
+        let triesLeft = params.maxTries;
+        let currentLevel = 1; // Current game level
+        let gameOver = false;
+        const gameOverMessage = document.getElementById('game-over-message');
+        const endGameMessage = document.getElementById('end-game-message');
+
+        // --- Camera Movement with WASD (for keyboard users) ---
+        const keys = {
+            w: false,
+            a: false,
+            s: false,
+            d: false
+        };
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'w') keys.w = true;
+            if (event.key === 'a') keys.a = true;
+            if (event.key === 's') keys.s = true;
+            if (event.key === 'd') keys.d = true;
+            if (event.key === 'f' || event.key === 'F') isFKeyDown = true; // Set F key state
+        });
+
+        window.addEventListener('keyup', (event) => {
+            if (event.key === 'w') keys.w = false;
+            if (event.key === 'a') keys.a = false;
+            if (event.key === 's') keys.s = false;
+            if (event.key === 'd') keys.d = false;
+            if (event.key === 'f' || event.key === 'F') isFKeyDown = false; // Clear F key state
+        });
+
+        // --- Helper function to remove slingshot visuals ---
+        function removeSlingshotVisuals() {
+            if (slingshotLine) {
+                scene.remove(slingshotLine);
+                slingshotLine = null;
+            }
+            if (aimingArrow) {
+                scene.remove(aimingArrow);
+                aimingArrow = null;
+            }
+            if (slingshotBand1) {
+                scene.remove(slingshotBand1);
+                slingshotBand1 = null;
+            }
+            if (slingshotBand2) {
+                scene.remove(slingshotBand2);
+                slingshotBand2 = null;
+            }
+        }
+
+        // --- Mouse and Touch Interaction Handlers ---
+        function handleMouseDown(clientX, clientY, button) {
+            if (gameOver || currentLevel > params.maxLevels) return;
+
+            // Check if click/touch is on a UI element (control panel, buttons)
+            const controlPanel = document.querySelector('.control-panel');
+            const touchControls = document.getElementById('touch-controls');
+            const rectControlPanel = controlPanel.getBoundingClientRect();
+            const rectTouchControls = touchControls.getBoundingClientRect();
+
+            // Check if the click/touch is within the bounds of the control panel or touch controls
+            const isOverControlPanel = clientX >= rectControlPanel.left && clientX <= rectControlPanel.right &&
+                                       clientY >= rectControlPanel.top && clientY <= rectControlPanel.bottom;
+            const isOverTouchControls = clientX >= rectTouchControls.left && clientX <= rectTouchControls.right &&
+                                        clientY >= rectTouchControls.top && clientY <= rectTouchControls.bottom;
+
+            if (isOverControlPanel || isOverTouchControls) {
+                // If over UI, let UI handle the event and don't process game logic
+                return;
+            }
+
+            if (button === 0) { // Left mouse button / Primary touch
+                if (isFKeyDown) { // If 'F' is held down (or touch F button is active), start dragging catapult
+                    isCatapultDragging = true;
+                    lastMouseX = clientX;
+                    lastMouseY = clientY;
+                } else if (isRotatingCamera) { // If touch rotate button is active, start camera rotation
+                    lastMouseX = clientX;
+                    lastMouseY = clientY;
+                } else if (!currentBird && triesLeft > 0) { // Otherwise, if no bird in play, start aiming
+                    isAiming = true;
+                    initialMousePos.set(clientX, clientY);
+
+                    currentBird = createBird();
+                    currentBird.body.position.copy(slingshotOrigin);
+                    currentBird.mesh.position.copy(slingshotOrigin);
+                    currentBird.body.sleepState = CANNON.Body.AWAKE;
+
+                    const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
+                    const linePoints = [];
+                    linePoints.push(currentBird.mesh.position.clone());
+                    linePoints.push(slingshotOrigin.clone());
+                    const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+                    slingshotLine = new THREE.Line(lineGeometry, lineMaterial);
+                    scene.add(slingshotLine);
+
+                    const bandMaterial = new THREE.LineBasicMaterial({ color: 0x8B4513, linewidth: 8 });
+                    const band1Points = [slingshotPost1.clone(), currentBird.mesh.position.clone()];
+                    slingshotBand1 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(band1Points), bandMaterial);
+                    scene.add(slingshotBand1);
+
+                    const band2Points = [slingshotPost2.clone(), currentBird.mesh.position.clone()];
+                    slingshotBand2 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(band2Points), bandMaterial);
+                    scene.add(slingshotBand2);
+
+                    const arrowDirection = new THREE.Vector3(0, 0, 0);
+                    const arrowOrigin = currentBird.mesh.position.clone();
+                    const arrowLength = 10;
+                    const arrowColor = 0x00ff00;
+                    aimingArrow = new THREE.ArrowHelper(arrowDirection, arrowOrigin, arrowLength, arrowColor, 3, 2);
+                    scene.add(aimingArrow);
+                }
+            } else if (button === 2) { // Right mouse button for camera rotation
+                isRotatingCamera = true;
+                lastMouseX = clientX;
+                lastMouseY = clientY;
+            }
+        }
+
+        function handleMouseMove(clientX, clientY) {
+            if (gameOver || currentLevel > params.maxLevels) return;
+
+            if (isAiming && currentBird) {
+                currentMousePos.set(clientX, clientY);
+
+                const dragVector2D = new THREE.Vector2().subVectors(currentMousePos, initialMousePos);
+                let pullDistance = dragVector2D.length();
+
+                if (pullDistance > params.maxPullDistance) {
+                    dragVector2D.setLength(params.maxPullDistance);
+                    pullDistance = params.maxPullDistance;
+                }
+
+                const pullBackVector3D = new THREE.Vector3(
+                    dragVector2D.x * 0.5,
+                    -dragVector2D.y * 0.5,
+                    pullDistance * 0.5
+                );
+
+                const birdPulledPos = new THREE.Vector3().copy(slingshotOrigin).add(pullBackVector3D);
+                currentBird.mesh.position.copy(birdPulledPos);
+                currentBird.body.position.copy(birdPulledPos);
+
+                const launchDirection = pullBackVector3D.clone().negate().normalize();
+
+                if (slingshotLine) {
+                    const positions = slingshotLine.geometry.attributes.position.array;
+                    positions[0] = currentBird.mesh.position.x;
+                    positions[1] = currentBird.mesh.position.y;
+                    positions[2] = currentBird.mesh.position.z;
+                    positions[3] = slingshotOrigin.x;
+                    positions[4] = slingshotOrigin.y;
+                    positions[5] = slingshotOrigin.z;
+                    slingshotLine.geometry.attributes.position.needsUpdate = true;
+                }
+
+                if (slingshotBand1 && slingshotBand2) {
+                    slingshotBand1.geometry.attributes.position.array[3] = currentBird.mesh.position.x;
+                    slingshotBand1.geometry.attributes.position.array[4] = currentBird.mesh.position.y;
+                    slingshotBand1.geometry.attributes.position.array[5] = currentBird.mesh.position.z;
+                    slingshotBand1.geometry.attributes.position.needsUpdate = true;
+
+                    slingshotBand2.geometry.attributes.position.array[3] = currentBird.mesh.position.x;
+                    slingshotBand2.geometry.attributes.position.array[4] = currentBird.mesh.position.y;
+                    slingshotBand2.geometry.attributes.position.array[5] = currentBird.mesh.position.z;
+                    slingshotBand2.geometry.attributes.position.needsUpdate = true;
+                }
+
+                if (aimingArrow) {
+                    const arrowLength = pullDistance * 1.5;
+                    aimingArrow.setDirection(launchDirection);
+                    aimingArrow.position.copy(currentBird.mesh.position);
+                    aimingArrow.setLength(arrowLength, 3, 2);
+                }
+
+            } else if (isRotatingCamera) {
+                const deltaX = clientX - lastMouseX;
+                const deltaY = clientY - lastMouseY;
+
+                camera.rotation.y -= deltaX * params.cameraRotationSpeed;
+                camera.rotation.x -= deltaY * params.cameraRotationSpeed;
+
+                camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+
+                lastMouseX = clientX;
+                lastMouseY = clientY;
+            } else if (isCatapultDragging) { // Move catapult if 'F' is held and left mouse is dragging
+                const deltaX = clientX - lastMouseX;
+                const deltaY = clientY - lastMouseY;
+
+                params.slingshotPosX += deltaX * params.catapultMoveSpeed;
+                params.slingshotPosY -= deltaY * params.catapultMoveSpeed; // Invert Y for screen to world
+
+                // Update the actual slingshot origin and posts
+                updateSlingshotPosition();
+
+                lastMouseX = clientX;
+                lastMouseY = clientY;
+            }
+        }
+
+        function handleMouseUp(button) {
+            if (gameOver || currentLevel > params.maxLevels) return;
+
+            if (button === 0) { // Left mouse button release / Primary touch release
+                if (isAiming && currentBird) { // If we were aiming, launch the bird
+                    isAiming = false;
+
+                    const dragVector2D = new THREE.Vector2().subVectors(currentMousePos, initialMousePos);
+                    let pullDistance = dragVector2D.length();
+
+                    if (pullDistance < params.minPullDistance) {
+                        scene.remove(currentBird.mesh);
+                        world.removeBody(currentBird.body);
+                        currentBird = null;
+                        removeSlingshotVisuals();
+                        return;
+                    }
+
+                    if (pullDistance > params.maxPullDistance) {
+                        dragVector2D.setLength(params.maxPullDistance);
+                        pullDistance = params.maxPullDistance;
+                    }
+
+                    const pullBackVector3D = new THREE.Vector3(
+                        dragVector2D.x * 0.5,
+                        -dragVector2D.y * 0.5,
+                        pullDistance * 0.5
+                    );
+                    const launchDirection = pullBackVector3D.clone().negate().normalize();
+
+                    const totalForce = launchDirection.multiplyScalar(pullDistance * params.launchForceScale * currentBird.body.mass);
+
+                    currentBird.body.applyImpulse(new CANNON.Vec3(totalForce.x, totalForce.y, totalForce.z), currentBird.body.position);
+                    currentBird.body.angularVelocity.set(Math.random() * 5, Math.random() * 5, Math.random() * 5);
+
+                    removeSlingshotVisuals();
+
+                    // Tries are now decremented when the bird settles or goes out of bounds.
+                    // This ensures scoring is counted before a 'try' is fully consumed.
+                }
+                if (isCatapultDragging) { // If we were dragging the catapult, stop
+                    isCatapultDragging = false;
+                }
+                // isRotatingCamera is handled by button toggle for touch
+            } else if (button === 2) { // Right mouse button release
+                // isRotatingCamera = false; // Only for mouse, touch button will toggle
+            }
+        }
+
+        // Mouse Event Listeners
+        renderer.domElement.addEventListener('mousedown', (event) => handleMouseDown(event.clientX, event.clientY, event.button));
+        renderer.domElement.addEventListener('mousemove', (event) => handleMouseMove(event.clientX, event.clientY));
+        renderer.domElement.addEventListener('mouseup', (event) => handleMouseUp(event.button));
+        renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Touch Event Listeners
+        let activeTouchId = null; // To track the primary touch for aiming/dragging
+        const touchMoveCatapultButton = document.getElementById('touch-move-catapult');
+        const touchRotateCameraButton = document.getElementById('touch-rotate-camera');
+
+        touchMoveCatapultButton.addEventListener('touchstart', (event) => {
+            event.preventDefault(); // Prevent default browser touch behavior
+            isFKeyDown = !isFKeyDown; // Toggle F key state
+            if (isFKeyDown) {
+                touchMoveCatapultButton.classList.add('active');
+            } else {
+                touchMoveCatapultButton.classList.remove('active');
+            }
+            // Ensure camera rotation is off if F is active
+            if (isFKeyDown) {
+                isRotatingCamera = false;
+                touchRotateCameraButton.classList.remove('active');
+            }
+        });
+
+        touchRotateCameraButton.addEventListener('touchstart', (event) => {
+            event.preventDefault(); // Prevent default browser touch behavior
+            isRotatingCamera = !isRotatingCamera; // Toggle camera rotation state
+            if (isRotatingCamera) {
+                touchRotateCameraButton.classList.add('active');
+            } else {
+                touchRotateCameraButton.classList.remove('active');
+            }
+            // Ensure F key is off if camera rotation is active
+            if (isRotatingCamera) {
+                isFKeyDown = false;
+                touchMoveCatapultButton.classList.remove('active');
+            }
+        });
+
+
+        renderer.domElement.addEventListener('touchstart', (event) => {
+            event.preventDefault(); // Prevent scrolling/zooming
+
+            // If a button is toggled, it effectively acts as holding down a key.
+            // The actual interaction on the canvas will then behave as if that key is held.
+            // So we don't need to explicitly set `isFKeyDown` or `isRotatingCamera` here
+            // based on touch count, only on the button press.
+
+            // Only process the first touch that starts on the canvas and isn't on a UI element
+            if (event.touches.length === 1 && activeTouchId === null) {
+                const touch = event.touches[0];
+                const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+
+                // Check if the touch started on a UI element (control panel, buttons)
+                const controlPanel = document.querySelector('.control-panel');
+                const touchControls = document.getElementById('touch-controls');
+                if (controlPanel.contains(targetElement) || touchControls.contains(targetElement)) {
+                    // Touch started on a UI element, let the UI element handle it.
+                    // Don't set activeTouchId for game interaction.
+                    return;
+                }
+
+                activeTouchId = touch.identifier;
+                handleMouseDown(touch.clientX, touch.clientY, 0); // Simulate left click
+            }
+        }, { passive: false }); // { passive: false } is important for preventDefault
+
+        renderer.domElement.addEventListener('touchmove', (event) => {
+            event.preventDefault(); // Prevent scrolling/zooming
+
+            for (let i = 0; i < event.touches.length; i++) {
+                if (event.touches[i].identifier === activeTouchId) {
+                    handleMouseMove(event.touches[i].clientX, event.touches[i].clientY);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        renderer.domElement.addEventListener('touchend', (event) => {
+            event.preventDefault(); // Prevent default touch behavior
+
+            let foundActiveTouch = false;
+            for (let i = 0; i < event.changedTouches.length; i++) {
+                if (event.changedTouches[i].identifier === activeTouchId) {
+                    handleMouseUp(0); // Simulate left click release
+                    activeTouchId = null; // Clear the active touch
+                    foundActiveTouch = true;
+                    break;
+                }
+            }
+            // If the primary touch was lifted, and there are other touches remaining,
+            // we might want to consider them for new interactions, but for simplicity
+            // in this example, we only allow one primary interaction at a time.
+            if (!foundActiveTouch && event.touches.length > 0) {
+                 // Potentially start a new interaction with a remaining touch if needed
+                 // For now, we'll let it be.
+            }
+        });
+
+        // --- Projectile (Angry Bird with Smiley Face) ---
+        function createSmileyTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+
+            context.beginPath();
+            context.arc(64, 64, 60, 0, Math.PI * 2, false);
+            context.fillStyle = '#f1c40f';
+            context.fill();
+            context.lineWidth = 2;
+            context.strokeStyle = '#000000';
+            context.stroke();
+
+            context.beginPath();
+            context.arc(40, 50, 8, 0, Math.PI * 2, false);
+            context.arc(88, 50, 8, 0, Math.PI * 2, false);
+            context.fillStyle = '#000000';
+            context.fill();
+
+            context.beginPath();
+            context.arc(64, 80, 30, 0, Math.PI, false);
+            context.lineWidth = 5;
+            context.strokeStyle = '#000000';
+            context.stroke();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const smileyTexture = createSmileyTexture();
+
+        function createBird() {
+            const size = params.birdSize;
+            const geometry = new THREE.SphereGeometry(size, 32, 32);
+            const material = new THREE.MeshStandardMaterial({
+                map: smileyTexture,
+                roughness: 0.6,
+                metalness: 0.2
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            const shape = new CANNON.Sphere(size);
+            const mass = 15;
+            const body = new CANNON.Body({ mass, shape, material: defaultMaterial });
+            body.position.copy(slingshotOrigin);
+            body.linearDamping = 0.01;
+            body.angularDamping = 0.01;
+            world.addBody(body);
+
+            return { mesh, body, type: 'bird' };
+        }
+
+        // --- Pre-built Structures ---
+        const buildingBlocks = [];
+        const balloons = []; // Array to hold balloon objects
+
+        function addBlock(x, y, z, width, height, depth, mass) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const color = new THREE.Color().setHSL(
+                Math.random(), 0.7, 0.5
+            );
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                roughness: 0.7,
+                metalness: 0.3,
+                wireframe: false
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            const shape = new CANNON.Box(new CANNON.Vec3(width / 2, height / 2, depth / 2));
+            const body = new CANNON.Body({ mass: mass, shape, material: defaultMaterial });
+            body.position.copy(mesh.position);
+            body.linearDamping = 0.05;
+            body.angularDamping = 0.05;
+            body.allowSleep = true;
+            body.sleepState = CANNON.Body.SLEEPING;
+            world.addBody(body);
+
+            buildingBlocks.push({ mesh, body, initialPosition: new CANNON.Vec3(x, y, z), scored: false });
+        }
+
+        function createStandardBuilding(positionOffset) {
+            const buildingWidth = 5;
+            const buildingHeight = 3;
+            const buildingDepth = 2;
+            const blockSize = params.buildingBlockSize;
+            const blockOffset = 0.1;
+
+            const startX = positionOffset.x - (buildingWidth * (blockSize + blockOffset)) / 2;
+            const startZ = positionOffset.z - (buildingDepth * (blockSize + blockOffset)) / 2;
+            const startY = groundBody.position.y + blockSize / 2 + 0.1;
+
+            for (let y = 0; y < buildingHeight; y++) {
+                for (let z = 0; z < buildingDepth; z++) {
+                    for (let x = 0; x < buildingWidth; x++) {
+                        addBlock(
+                            startX + x * (blockSize + blockOffset) + blockSize / 2,
+                            startY + y * (blockSize + blockOffset),
+                            startZ + z * (blockSize + blockOffset) + blockSize / 2,
+                            blockSize, blockSize, blockSize,
+                            params.blockMass
+                        );
+                    }
+                }
+            }
+        }
+
+        function createTower(positionOffset, height, baseWidth, isHuge = false) {
+            const blockSize = isHuge ? params.towerBlockSize : params.buildingBlockSize;
+            const blockMass = isHuge ? params.towerBlockMass : params.blockMass;
+            const blockOffset = 0.1;
+
+            const startX = positionOffset.x - (baseWidth * (blockSize + blockOffset)) / 2;
+            const startZ = positionOffset.z - (baseWidth * (blockSize + blockOffset)) / 2;
+            const startY = groundBody.position.y + blockSize / 2 + 0.1;
+
+            for (let y = 0; y < height; y++) {
+                for (let z = 0; z < baseWidth; z++) {
+                    for (let x = 0; x < baseWidth; x++) {
+                        addBlock(
+                            startX + x * (blockSize + blockOffset) + blockSize / 2,
+                            startY + y * (blockSize + blockOffset),
+                            startZ + z * (blockSize + blockOffset) + blockSize / 2,
+                            blockSize, blockSize, blockSize,
+                            blockMass
+                        );
+                    }
+                }
+            }
+        }
+
+        function createLongTallTower(positionOffset, numBlocks = 1) {
+            const blockSize = params.longTallBlockSize;
+            const blockMass = params.towerBlockMass;
+            const blockOffset = 0.1;
+
+            for (let i = 0; i < numBlocks; i++) {
+                addBlock(
+                    positionOffset.x,
+                    groundBody.position.y + blockSize.height / 2 + blockOffset + (i * (blockSize.height + blockOffset)),
+                    positionOffset.z,
+                    blockSize.width,
+                    blockSize.height,
+                    blockSize.depth,
+                    blockMass
+                );
+            }
+        }
+
+        function createLevelStructure(level) {
+            // Clear existing blocks
+            buildingBlocks.forEach(obj => {
+                scene.remove(obj.mesh);
+                world.removeBody(obj.body);
+            });
+            buildingBlocks.length = 0;
+
+            // Define structures based on level
+            switch (level) {
+                case 1:
+                    createStandardBuilding(new THREE.Vector3(0, 0, 0));
+                    createStandardBuilding(new THREE.Vector3(50, 0, -20));
+                    createTower(new THREE.Vector3(-50, 0, -20), 8, 3, true); // Increased height and base
+                    let towerSpacing1 = 15; // Decreased spacing
+                    let towerStartX1 = -150; // Wider spread
+                    let towerZ1 = -70;
+                    for (let i = 0; i < 20; i++) { // More towers
+                        createLongTallTower(new THREE.Vector3(towerStartX1 + i * towerSpacing1, 0, towerZ1), 2); // Taller long towers
+                    }
+                    let towerSpacing2 = 15;
+                    let towerStartX2 = -180;
+                    let towerZ2 = -100;
+                    for (let i = 0; i < 25; i++) { // Even more towers
+                        createLongTallTower(new THREE.Vector3(towerStartX2 + i * towerSpacing2, 0, towerZ2), 3); // Even taller long towers
+                    }
+                    break;
+                case 2:
+                    // A larger, denser wall of blocks
+                    const wallBlockSize = params.buildingBlockSize;
+                    const wallOffset = 0.1;
+                    const wallWidth = 15; // Increased width
+                    const wallHeight = 8; // Increased height
+                    const wallDepth = 2; // Increased depth
+                    for (let y = 0; y < wallHeight; y++) {
+                        for (let z = 0; z < wallDepth; z++) {
+                            for (let x = 0; x < wallWidth; x++) {
+                                addBlock(
+                                    (x - wallWidth / 2) * (wallBlockSize + wallOffset),
+                                    groundBody.position.y + wallBlockSize / 2 + y * (wallBlockSize + wallOffset),
+                                    -30 + z * (wallBlockSize + wallOffset), // Extend in Z
+                                    wallBlockSize, wallBlockSize, wallBlockSize,
+                                    params.blockMass
+                                );
+                            }
+                        }
+                    }
+                    // Add some additional towers behind the wall
+                    createTower(new THREE.Vector3(-60, 0, -60), 6, 3);
+                    createTower(new THREE.Vector3(60, 0, -60), 6, 3);
+                    break;
+                case 3:
+                    // A larger pyramid
+                    const pyramidBlockSize = params.buildingBlockSize * 1.2;
+                    const pyramidOffset = 0.2;
+                    const pyramidLevels = 6; // Increased levels
+                    for (let level = 0; level < pyramidLevels; level++) {
+                        const blocksInRow = pyramidLevels - level;
+                        const startX = -(blocksInRow * (pyramidBlockSize + pyramidOffset)) / 2;
+                        const startY = groundBody.position.y + pyramidBlockSize / 2 + level * (pyramidBlockSize + pyramidOffset);
+                        for (let x = 0; x < blocksInRow; x++) {
+                            for (let z = 0; z < blocksInRow; z++) {
+                                addBlock(
+                                    startX + x * (pyramidBlockSize + pyramidOffset) + pyramidBlockSize / 2,
+                                    startY,
+                                    (z - blocksInRow / 2) * (pyramidBlockSize + pyramidOffset),
+                                    pyramidBlockSize, pyramidBlockSize, pyramidBlockSize,
+                                    params.blockMass * 1.5
+                                );
+                            }
+                        }
+                    }
+                    // Add surrounding structures
+                    createStandardBuilding(new THREE.Vector3(80, 0, 0));
+                    createStandardBuilding(new THREE.Vector3(-80, 0, 0));
+                    createTower(new THREE.Vector3(0, 0, 80), 7, 2, true);
+                    break;
+                case 24:
+                    // End game level - no blocks, just message and balloons
+                    break;
+                default:
+                    // Generic level for levels 4-23
+                    const numGenericTowers = Math.floor(Math.random() * 8) + 10; // 10 to 17 towers
+                    const genericTowerHeight = Math.floor(Math.random() * 4) + 4; // 4 to 7 blocks high
+                    const genericBaseWidth = Math.floor(Math.random() * 2) + 2; // 2 or 3 block base
+                    const genericSpacing = 25; // Adjusted spacing
+                    const genericStartX = -(numGenericTowers / 2) * genericSpacing;
+                    for (let i = 0; i < numGenericTowers; i++) {
+                        createTower(new THREE.Vector3(genericStartX + i * genericSpacing, 0, -50), genericTowerHeight, genericBaseWidth, true);
+                    }
+                    // Add multiple standard buildings
+                    createStandardBuilding(new THREE.Vector3(Math.random() * 100 - 50, 0, Math.random() * 50 - 25));
+                    createStandardBuilding(new THREE.Vector3(Math.random() * 100 - 50, 0, Math.random() * 50 - 25));
+                    createStandardBuilding(new THREE.Vector3(Math.random() * 100 - 50, 0, Math.random() * 50 - 25));
+                    break;
+            }
+        }
+
+        function loadNextLevel() {
+            if (currentLevel < params.maxLevels) {
+                currentLevel++;
+                blocksKnockedDown = 0;
+                triesLeft = params.maxTries;
+                updateScoreDisplay();
+                updateTriesDisplay();
+                updateLevelDisplay();
+                createLevelStructure(currentLevel);
+            } else if (currentLevel === params.maxLevels) {
+                endGame();
+            }
+        }
+
+        function endGame() {
+            gameOver = true;
+            // Hide game UI
+            document.getElementById('game-info').style.display = 'none';
+            document.getElementById('score-display').style.display = 'none';
+            document.getElementById('tries-display').style.display = 'none';
+            document.getElementById('level-display').style.display = 'none';
+            document.querySelector('.control-panel').style.display = 'none';
+            document.getElementById('controls-info').style.display = 'none';
+            gameOverMessage.style.display = 'none'; // Ensure game over message is hidden
+
+            endGameMessage.innerHTML = "You indeed, are a scholar and a gentleman,<br>now gtfooh!";
+            endGameMessage.style.display = 'block';
+
+            // Create balloons
+            for (let i = 0; i < 30; i++) {
+                createBalloon();
+            }
+        }
+
+        // --- Balloon Creation ---
+        function createBalloonTexture(color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+
+            // Balloon body (oval shape)
+            context.beginPath();
+            context.ellipse(64, 50, 40, 60, 0, 0, Math.PI * 2);
+            context.fillStyle = color;
+            context.fill();
+            context.strokeStyle = 'black';
+            context.lineWidth = 2;
+            context.stroke();
+
+            // Balloon knot (triangle)
+            context.beginPath();
+            context.moveTo(64, 110);
+            context.lineTo(59, 118);
+            context.lineTo(69, 118);
+            context.closePath();
+            context.fillStyle = color;
+            context.fill();
+            context.strokeStyle = 'black';
+            context.lineWidth = 1;
+            context.stroke();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createBalloon() {
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            const balloonTexture = createBalloonTexture(randomColor);
+
+            const geometry = new THREE.SphereGeometry(6, 32, 32); // Slightly larger sphere
+            const material = new THREE.MeshStandardMaterial({
+                map: balloonTexture,
+                transparent: true,
+                opacity: 0.9,
+                roughness: 0.5,
+                metalness: 0.1
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(Math.random() * 100 - 50, groundBody.position.y + 10, Math.random() * 100 - 50); // Random start position
+            scene.add(mesh);
+
+            const shape = new CANNON.Sphere(6);
+            const body = new CANNON.Body({ mass: 0.1, shape, material: defaultMaterial }); // Very light mass
+            body.position.copy(mesh.position);
+            body.linearDamping = 0.9; // High damping to simulate air resistance
+            body.angularDamping = 0.9;
+            world.addBody(body);
+
+            balloons.push({ mesh, body });
+        }
+
+
+        // Function to update slingshot position and related visuals
+        function updateSlingshotPosition() {
+            slingshotOrigin.set(params.slingshotPosX, params.slingshotPosY, params.slingshotPosZ);
+            slingshotPost1.set(params.slingshotPosX - 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
+            slingshotPost2.set(params.slingshotPosX + 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
+
+            // Update catapult mesh position
+            if (catapultMesh) {
+                catapultMesh.position.copy(slingshotOrigin);
+                catapultMesh.position.y = params.slingshotPosY - (params.buildingBlockSize / 2); // Adjust y to place it on the ground if needed
+            }
+
+            // If a bird is currently being aimed, update its position relative to the new slingshot origin
+            if (currentBird && isAiming) {
+                currentBird.body.position.copy(slingshotOrigin);
+                currentBird.mesh.position.copy(slingshotOrigin);
+                // Also update the slingshot visuals if they exist
+                if (slingshotLine) {
+                    const positions = slingshotLine.geometry.attributes.position.array;
+                    positions[0] = currentBird.mesh.position.x;
+                    positions[1] = currentBird.mesh.position.y;
+                    positions[2] = currentBird.mesh.position.z;
+                    slingshotLine.geometry.attributes.position.needsUpdate = true;
+                }
+                if (slingshotBand1 && slingshotBand2) {
+                    slingshotBand1.geometry.attributes.position.array[3] = currentBird.mesh.position.x;
+                    slingshotBand1.geometry.attributes.position.array[4] = currentBird.mesh.position.y;
+                    slingshotBand1.geometry.attributes.position.array[5] = currentBird.mesh.position.z;
+                    slingshotBand1.geometry.attributes.position.needsUpdate = true;
+
+                    slingshotBand2.geometry.attributes.position.array[3] = currentBird.mesh.position.x;
+                    slingshotBand2.geometry.attributes.position.array[4] = currentBird.mesh.position.y;
+                    slingshotBand2.geometry.attributes.position.array[5] = currentBird.mesh.position.z;
+                    slingshotBand2.geometry.attributes.position.needsUpdate = true;
+                }
+                if (aimingArrow) {
+                    aimingArrow.position.copy(currentBird.mesh.position);
+                }
+            }
+        }
+
+        // --- Score System ---
+        function updateScoreDisplay() {
+            document.getElementById('score-display').textContent = `Blocks Down: ${blocksKnockedDown}`;
+        }
+
+        function updateTriesDisplay() {
+            document.getElementById('tries-display').textContent = `Tries Left: ${triesLeft}`;
+        }
+
+        function updateLevelDisplay() {
+            document.getElementById('level-display').textContent = `Level: ${currentLevel}`;
+        }
+
+        function checkKnockedDownBlocks() {
+            buildingBlocks.forEach(block => {
+                if (!block.scored && block.body.sleepState !== CANNON.Body.SLEEPING) {
+                    const displacementThreshold = block.mesh.geometry.parameters.width * 1.5;
+
+                    const distance = block.body.position.distanceTo(block.initialPosition);
+
+                    if (distance > displacementThreshold) {
+                        blocksKnockedDown++;
+                        block.scored = true;
+                        updateScoreDisplay();
+                        block.mesh.material.color.set(0x2ecc71);
+                    }
+                }
+            });
+
+            // Level progression check moved here to ensure it happens after blocks are counted
+            // and before a potential game over due to tries running out.
+            if (blocksKnockedDown >= params.blocksToNextLevel && currentLevel < params.maxLevels) {
+                loadNextLevel();
+            } else if (blocksKnockedDown >= params.blocksToNextLevel && currentLevel === params.maxLevels) {
+                endGame();
+            }
+        }
+
+        // --- Helpers ---
+        function resetGame() {
+            if (currentBird) {
+                scene.remove(currentBird.mesh);
+                world.removeBody(currentBird.body);
+                currentBird = null;
+            }
+            removeSlingshotVisuals(); // This function is now defined earlier
+
+            // Clear all balloons if present
+            balloons.forEach(balloon => {
+                scene.remove(balloon.mesh);
+                world.removeBody(balloon.body);
+            });
+            balloons.length = 0;
+
+            // Remove existing catapult mesh if it exists
+            if (catapultMesh) {
+                scene.remove(catapultMesh);
+            }
+
+            // Create a simple catapult visual (e.g., a few cubes)
+            const baseGeometry = new THREE.BoxGeometry(15, 5, 10);
+            const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x6B4226, roughness: 0.7 }); // Brown
+            const baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+
+            const postGeometry = new THREE.BoxGeometry(3, 20, 3);
+            const postMaterial = new THREE.MeshStandardMaterial({ color: 0x6B4226, roughness: 0.7 }); // Brown
+            const post1 = new THREE.Mesh(postGeometry, postMaterial);
+            post1.position.set(-5, 10, -2);
+            const post2 = new THREE.Mesh(postGeometry, postMaterial);
+            post2.position.set(5, 10, -2);
+
+            catapultMesh = new THREE.Group();
+            catapultMesh.add(baseMesh);
+            catapultMesh.add(post1);
+            catapultMesh.add(post2);
+            catapultMesh.castShadow = true;
+            catapultMesh.receiveShadow = true;
+
+            scene.add(catapultMesh);
+
+
+            currentLevel = 1;
+            blocksKnockedDown = 0;
+            triesLeft = params.maxTries;
+            gameOver = false;
+            gameOverMessage.style.display = 'none';
+            endGameMessage.style.display = 'none'; // Hide end game message
+            document.getElementById('game-info').style.display = 'block'; // Show game UI
+            document.getElementById('score-display').style.display = 'block';
+            document.getElementById('tries-display').style.display = 'block';
+            document.getElementById('level-display').style.display = 'block';
+            document.querySelector('.control-panel').style.display = 'block';
+            document.getElementById('controls-info').style.display = 'block';
+
+            // Reset touch button states
+            isFKeyDown = false;
+            isRotatingCamera = false;
+            touchMoveCatapultButton.classList.remove('active');
+            touchRotateCameraButton.classList.remove('active');
+
+
+            createLevelStructure(currentLevel); // Start game at level 1
+            updateScoreDisplay();
+            updateTriesDisplay();
+            updateLevelDisplay();
+            updateSlingshotPosition(); // Set initial catapult position
+        }
+
+        // --- UI Controls (simplified) ---
+        document.getElementById('gravity').addEventListener('input', (e) => {
+            params.gravity = parseFloat(e.target.value);
+            document.getElementById('gravity-value').textContent = params.gravity;
+            world.gravity.set(0, -params.gravity, 0);
+        });
+
+        document.getElementById('slingshotPosX').addEventListener('input', (e) => {
+            params.slingshotPosX = parseFloat(e.target.value);
+            document.getElementById('slingshotPosX-value').textContent = params.slingshotPosX;
+            updateSlingshotPosition();
+        });
+        document.getElementById('slingshotPosY').addEventListener('input', (e) => {
+            params.slingshotPosY = parseFloat(e.target.value);
+            document.getElementById('slingshotPosY-value').textContent = params.slingshotPosY;
+            updateSlingshotPosition();
+        });
+        document.getElementById('slingshotPosZ').addEventListener('input', (e) => {
+            params.slingshotPosZ = parseFloat(e.target.value);
+            document.getElementById('slingshotPosZ-value').textContent = params.slingshotPosZ;
+            updateSlingshotPosition();
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', resetGame);
+
+        setTimeout(() => {
+            document.getElementById('game-info').style.opacity = '0';
+        }, 5000);
+
+        // --- Animation Loop ---
+        let lastTime;
+        const fixedTimeStep = 1 / 60;
+        let accumulator = 0;
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            if (lastTime !== undefined) {
+                const deltaTime = (time - lastTime) / 1000;
+                accumulator += deltaTime;
+
+                while (accumulator >= fixedTimeStep) {
+                    world.step(fixedTimeStep);
+                    accumulator -= fixedTimeStep;
+                }
+            }
+            lastTime = time;
+
+            const moveVector = new THREE.Vector3();
+            // WASD movement for keyboard users (not directly for touch)
+            if (keys.w) moveVector.z -= params.cameraMoveSpeed;
+            if (keys.s) moveVector.z += params.cameraMoveSpeed;
+            if (keys.a) moveVector.x -= params.cameraMoveSpeed;
+            if (keys.d) moveVector.x += params.cameraMoveSpeed;
+
+            moveVector.applyQuaternion(camera.quaternion);
+            camera.position.add(moveVector);
+
+            if (currentBird) {
+                currentBird.mesh.position.copy(currentBird.body.position);
+                currentBird.mesh.quaternion.copy(currentBird.body.quaternion);
+
+                // Check if bird is out of bounds or settled, then allow new shot
+                if (currentBird.body.position.y < groundBody.position.y - 10 || // Fell off platform
+                    currentBird.body.position.distanceTo(slingshotOrigin) > 100 || // Far away from slingshot
+                    (currentBird.body.velocity.length() < 0.1 && currentBird.body.sleepState === CANNON.Body.SLEEPING && currentBird.body.position.distanceTo(slingshotOrigin) > params.birdSize * 2) // Settled AND far enough away
+                    ) {
+                    if (!currentBird.settledTimer) {
+                        currentBird.settledTimer = setTimeout(() => {
+                            scene.remove(currentBird.mesh);
+                            world.removeBody(currentBird.body);
+                            currentBird = null;
+
+                            // Decrement tries ONLY AFTER the bird has settled and scoring is processed
+                            triesLeft--;
+                            updateTriesDisplay();
+                            // Check for game over after try is decremented and level progression check
+                            if (triesLeft <= 0 && blocksKnockedDown < params.blocksToNextLevel) { // Only game over if not enough blocks for next level
+                                gameOver = true;
+                                gameOverMessage.style.display = 'block';
+                            }
+                        }, 500);
+                    }
+                }
+            }
+
+            buildingBlocks.forEach(obj => {
+                obj.mesh.position.copy(obj.body.position);
+                obj.mesh.quaternion.copy(obj.body.quaternion);
+            });
+
+            // Animate balloons
+            balloons.forEach(balloon => {
+                balloon.body.applyForce(new CANNON.Vec3(0, 0.5, 0), balloon.body.position); // Upward force
+                balloon.mesh.position.copy(balloon.body.position);
+                balloon.mesh.quaternion.copy(balloon.body.quaternion);
+            });
+
+            checkKnockedDownBlocks(); // This will handle level progression
+            animateLavaLamp();
+            renderer.render(scene, camera);
+        }
+
+        resetGame(); // Initialize the game on load to level 1 and create structures
+        requestAnimationFrame(animate);
+
+        // --- Window Resize Handler ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
+```
