@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Angry Blocks</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            color: white;
+            font-family: 'Inter', sans-serif; /* Using Inter font */
+            transition: background-color 2s ease-in-out;
+        }
+        canvas {
+            display: block;
+        }
+        #game-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px; /* Rounded corners */
+            font-size: 14px;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px; /* Rounded corners */
+            color: white;
+            font-size: 14px;
+            width: 250px;
+            text-align: center;
+        }
+        .control-panel button {
+            margin-top: 10px;
+            background: #e74c3c; /* Angry Birds red */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); /* Button shadow */
+        }
+        .control-panel button:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+        .control-panel button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        #score-display {
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px; /* Rounded corners */
+            font-size: 20px;
+            font-weight: bold;
+            color: #f1c40f; /* Gold for score */
+        }
+        #tries-display { /* New element for tries */
+            position: absolute;
+            top: 110px; /* Below score */
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #3498db; /* Blue for tries */
+        }
+        #level-display { /* New element for level */
+            position: absolute;
+            top: 160px; /* Below tries */
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #27ae60; /* Green for level */
+        }
+        #controls-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px; /* Rounded corners */
+            font-size: 12px;
+            opacity: 1;
+            pointer-events: none;
+        }
+        #game-over-message { /* New element for game over */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 30px;
+            border-radius: 10px;
+            font-size: 30px;
+            font-weight: bold;
+            color: #e74c3c;
+            text-align: center;
+            display: none; /* Hidden by default */
+            z-index: 100; /* Ensure it's on top */
+        }
+        #end-game-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 40px;
+            border-radius: 15px;
+            font-size: 36px;
+            font-weight: bold;
+            color: #f1c40f;
+            text-align: center;
+            display: none; /* Hidden by default */
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(241, 196, 15, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-info">Angry Blocks: Knock down the structure!</div>
+    <div id="score-display">Blocks Down: 0</div>
+    <div id="tries-display">Tries Left: 3</div>
+    <div id="level-display">Level: 1</div>
+    <div id="game-over-message">Game Over!</div>
+    <div id="end-game-message"></div>
+
+    <div class="control-panel">
+        <h3>Game Controls</h3>
+        <div class="slider-container">
+            <label for="gravity">Gravity Strength: <span id="gravity-value">9.8</span></label>
+            <input type="range" id="gravity" min="0" max="20" step="0.1" value="9.8">
+        </div>
+        <div class="slider-container">
+            <label for="slingshotPosX">Slingshot X: <span id="slingshotPosX-value">0</span></label>
+            <input type="range" id="slingshotPosX" min="-50" max="50" step="1" value="0">
+        </div>
+        <div class="slider-container">
+            <label for="slingshotPosY">Slingshot Y: <span id="slingshotPosY-value">-14</span></label>
+            <input type="range" id="slingshotPosY" min="-40" max="40" step="1" value="-14">
+        </div>
+        <div class="slider-container">
+            <label for="slingshotPosZ">Slingshot Z: <span id="slingshotPosZ-value">60</span></label>
+            <input type="range" id="slingshotPosZ" min="0" max="100" step="1" value="60">
+        </div>
+        <button id="resetBtn">Reset Game</button>
+    </div>
+
+    <div id="controls-info">
+        Left Click (Hold & Drag): Aim Slingshot<br>
+        Left Click (Release): Launch Bird<br>
+        Right Click (Hold & Drag): Rotate Camera<br>
+        WASD: Move Camera
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script type="module">
+        import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
+
+        // --- Three.js Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 30, 120);
+        camera.lookAt(0, 10, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Parameters ---
+        const params = {
+            gravity: 9.8,
+            launchForceScale: 25,
+            birdSize: 4,
+            buildingBlockSize: 6 * 2,
+            minPullDistance: 5,
+            maxPullDistance: 30,
+            blockMass: 0.8,
+            cameraRotationSpeed: 0.005,
+            cameraMoveSpeed: 1.0,
+            towerBlockSize: 8 * 2,
+            towerBlockMass: 1.5,
+            longTallBlockSize: { width: 4 * 2, height: 40 * 2, depth: 4 * 2 },
+            maxTries: 3,
+            maxLevels: 24, // Total number of levels
+            blocksToNextLevel: 120, // Blocks needed to advance
+            slingshotPosX: 0,
+            slingshotPosY: -14,
+            slingshotPosZ: 60
+        };
+
+        // --- Cannon-ES Physics Setup ---
+        const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -params.gravity, 0) });
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+
+        // --- Materials ---
+        const defaultMaterial = new CANNON.Material("defaultMaterial");
+        const defaultContactMaterial = new CANNON.ContactMaterial(
+            defaultMaterial,
+            defaultMaterial,
+            {
+                friction: 0.4,
+                restitution: 0.2
+            }
+        );
+        world.addContactMaterial(defaultContactMaterial);
+        world.defaultContactMaterial = defaultContactMaterial;
+
+        // --- Create a Ground ---
+        const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: defaultMaterial });
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        groundBody.position.y = -20;
+        world.addBody(groundBody);
+
+        const groundGeo = new THREE.PlaneGeometry(2000, 2000, 50, 50);
+        const groundMat = new THREE.MeshStandardMaterial({
+            color: 0x4A4A4A,
+            roughness: 0.8,
+            metalness: 0.2,
+            wireframe: false
+        });
+        const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.position.y = -20;
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+
+        // --- Lighting ---
+        scene.add(new THREE.AmbientLight(0x404040, 2));
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.8);
+        directionalLight.position.set(50, 150, 100);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 400;
+        directionalLight.shadow.camera.left = -100;
+        directionalLight.shadow.camera.right = 100;
+        directionalLight.shadow.camera.top = 100;
+        directionalLight.shadow.camera.bottom = -100;
+        directionalLight.shadow.camera.aspect = 1;
+        scene.add(directionalLight);
+
+        // --- Lava Lamp Background ---
+        const lavaCanvas = document.createElement('canvas');
+        lavaCanvas.width = 256;
+        lavaCanvas.height = 256;
+        const lavaContext = lavaCanvas.getContext('2d');
+        const lavaTexture = new THREE.CanvasTexture(lavaCanvas);
+        scene.background = lavaTexture;
+
+        const blobs = [];
+        const numBlobs = 10;
+        for (let i = 0; i < numBlobs; i++) {
+            blobs.push({
+                x: Math.random() * lavaCanvas.width,
+                y: Math.random() * lavaCanvas.height,
+                radius: Math.random() * 30 + 20,
+                dx: (Math.random() - 0.5) * 2,
+                dy: (Math.random() - 0.5) * 2,
+                color: `hsl(${Math.random() * 360}, 70%, 50%)`
+            });
+        }
+
+        function animateLavaLamp() {
+            lavaContext.clearRect(0, 0, lavaCanvas.width, lavaCanvas.height);
+            lavaContext.filter = 'blur(8px)';
+            lavaContext.globalCompositeOperation = 'lighter';
+
+            for (const blob of blobs) {
+                blob.x += blob.dx;
+                blob.y += blob.dy;
+
+                if (blob.x + blob.radius > lavaCanvas.width || blob.x - blob.radius < 0) {
+                    blob.dx *= -1;
+                }
+                if (blob.y + blob.radius > lavaCanvas.height || blob.y - blob.radius < 0) {
+                    blob.dy *= -1;
+                }
+
+                lavaContext.beginPath();
+                lavaContext.arc(blob.x, blob.y, blob.radius, 0, Math.PI * 2);
+                lavaContext.fillStyle = blob.color;
+                lavaContext.fill();
+            }
+
+            lavaContext.globalCompositeOperation = 'source-over';
+            lavaContext.filter = 'none';
+            lavaTexture.needsUpdate = true;
+        }
+
+
+        // --- Game State Variables ---
+        let currentBird = null;
+        let isAiming = false;
+        let isRotatingCamera = false;
+        let initialMousePos = new THREE.Vector2();
+        let currentMousePos = new THREE.Vector2();
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let slingshotLine = null;
+        let aimingArrow = null;
+        const slingshotOrigin = new THREE.Vector3(params.slingshotPosX, params.slingshotPosY, params.slingshotPosZ);
+
+        const slingshotPost1 = new THREE.Vector3(params.slingshotPosX - 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
+        const slingshotPost2 = new THREE.Vector3(params.slingshotPosX + 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
+        let slingshotBand1 = null;
+        let slingshotBand2 = null;
+
+        // --- Game Logic Variables ---
+        let blocksKnockedDown = 0;
+        let triesLeft = params.maxTries;
+        let currentLevel = 1; // Current game level
+        let gameOver = false;
+        const gameOverMessage = document.getElementById('game-over-message');
+        const endGameMessage = document.getElementById('end-game-message');
+
+        // --- Camera Movement with WASD ---
+        const keys = {
+            w: false,
+            a: false,
+            s: false,
+            d: false
+        };
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'w') keys.w = true;
+            if (event.key === 'a') keys.a = true;
+            if (event.key === 's') keys.s = true;
+            if (event.key === 'd') keys.d = true;
+        });
+
+        window.addEventListener('keyup', (event) => {
+            if (event.key === 'w') keys.w = false;
+            if (event.key === 'a') keys.a = false;
+            if (event.key === 's') keys.s = false;
+            if (event.key === 'd') keys.d = false;
+        });
+
+
+        // --- Mouse Interaction ---
+        function onMouseDown(event) {
+            if (gameOver || currentLevel > params.maxLevels) return;
+
+            if (event.button === 0 && !currentBird && triesLeft > 0) {
+                isAiming = true;
+                initialMousePos.set(event.clientX, event.clientY);
+
+                currentBird = createBird();
+                currentBird.body.position.copy(slingshotOrigin);
+                currentBird.mesh.position.copy(slingshotOrigin);
+                currentBird.body.sleepState = CANNON.Body.AWAKE;
+
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
+                const linePoints = [];
+                linePoints.push(currentBird.mesh.position.clone());
+                linePoints.push(slingshotOrigin.clone());
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+                slingshotLine = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(slingshotLine);
+
+                const bandMaterial = new THREE.LineBasicMaterial({ color: 0x8B4513, linewidth: 8 });
+                const band1Points = [slingshotPost1.clone(), currentBird.mesh.position.clone()];
+                slingshotBand1 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(band1Points), bandMaterial);
+                scene.add(slingshotBand1);
+
+                const band2Points = [slingshotPost2.clone(), currentBird.mesh.position.clone()];
+                slingshotBand2 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(band2Points), bandMaterial);
+                scene.add(slingshotBand2);
+
+                const arrowDirection = new THREE.Vector3(0, 0, 0);
+                const arrowOrigin = currentBird.mesh.position.clone();
+                const arrowLength = 10;
+                const arrowColor = 0x00ff00;
+                aimingArrow = new THREE.ArrowHelper(arrowDirection, arrowOrigin, arrowLength, arrowColor, 3, 2);
+                scene.add(aimingArrow);
+
+            } else if (event.button === 2) {
+                isRotatingCamera = true;
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+            }
+        }
+
+        function onMouseMove(event) {
+            if (gameOver || currentLevel > params.maxLevels) return;
+
+            if (isAiming && currentBird) {
+                currentMousePos.set(event.clientX, event.clientY);
+
+                const dragVector2D = new THREE.Vector2().subVectors(currentMousePos, initialMousePos);
+                let pullDistance = dragVector2D.length();
+
+                if (pullDistance > params.maxPullDistance) {
+                    dragVector2D.setLength(params.maxPullDistance);
+                    pullDistance = params.maxPullDistance;
+                }
+
+                const pullBackVector3D = new THREE.Vector3(
+                    dragVector2D.x * 0.5,
+                    -dragVector2D.y * 0.5,
+                    pullDistance * 0.5
+                );
+
+                const birdPulledPos = new THREE.Vector3().copy(slingshotOrigin).add(pullBackVector3D);
+                currentBird.mesh.position.copy(birdPulledPos);
+                currentBird.body.position.copy(birdPulledPos);
+
+                const launchDirection = pullBackVector3D.clone().negate().normalize();
+
+                if (slingshotLine) {
+                    const positions = slingshotLine.geometry.attributes.position.array;
+                    positions[0] = currentBird.mesh.position.x;
+                    positions[1] = currentBird.mesh.position.y;
+                    positions[2] = currentBird.mesh.position.z;
+                    positions[3] = slingshotOrigin.x;
+                    positions[4] = slingshotOrigin.y;
+                    positions[5] = slingshotOrigin.z;
+                    slingshotLine.geometry.attributes.position.needsUpdate = true;
+                }
+
+                if (slingshotBand1 && slingshotBand2) {
+                    slingshotBand1.geometry.attributes.position.array[3] = currentBird.mesh.position.x;
+                    slingshotBand1.geometry.attributes.position.array[4] = currentBird.mesh.position.y;
+                    slingshotBand1.geometry.attributes.position.array[5] = currentBird.mesh.position.z;
+                    slingshotBand1.geometry.attributes.position.needsUpdate = true;
+
+                    slingshotBand2.geometry.attributes.position.array[3] = currentBird.mesh.position.x;
+                    slingshotBand2.geometry.attributes.position.array[4] = currentBird.mesh.position.y;
+                    slingshotBand2.geometry.attributes.position.array[5] = currentBird.mesh.position.z;
+                    slingshotBand2.geometry.attributes.position.needsUpdate = true;
+                }
+
+                if (aimingArrow) {
+                    const arrowLength = pullDistance * 1.5;
+                    aimingArrow.setDirection(launchDirection);
+                    aimingArrow.position.copy(currentBird.mesh.position);
+                    aimingArrow.setLength(arrowLength, 3, 2);
+                }
+
+            } else if (isRotatingCamera) {
+                const deltaX = event.clientX - lastMouseX;
+                const deltaY = event.clientY - lastMouseY;
+
+                camera.rotation.y -= deltaX * params.cameraRotationSpeed;
+                camera.rotation.x -= deltaY * params.cameraRotationSpeed;
+
+                camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+            }
+        }
+
+        function onMouseUp(event) {
+            if (gameOver || currentLevel > params.maxLevels) return;
+
+            if (event.button === 0 && isAiming && currentBird) {
+                isAiming = false;
+
+                const dragVector2D = new THREE.Vector2().subVectors(currentMousePos, initialMousePos);
+                let pullDistance = dragVector2D.length();
+
+                if (pullDistance < params.minPullDistance) {
+                    scene.remove(currentBird.mesh);
+                    world.removeBody(currentBird.body);
+                    currentBird = null;
+                    removeSlingshotVisuals();
+                    return;
+                }
+
+                if (pullDistance > params.maxPullDistance) {
+                    dragVector2D.setLength(params.maxPullDistance);
+                    pullDistance = params.maxPullDistance;
+                }
+
+                const pullBackVector3D = new THREE.Vector3(
+                    dragVector2D.x * 0.5,
+                    -dragVector2D.y * 0.5,
+                    pullDistance * 0.5
+                );
+                const launchDirection = pullBackVector3D.clone().negate().normalize();
+
+                const totalForce = launchDirection.multiplyScalar(pullDistance * params.launchForceScale * currentBird.body.mass);
+
+                currentBird.body.applyImpulse(new CANNON.Vec3(totalForce.x, totalForce.y, totalForce.z), currentBird.body.position);
+                currentBird.body.angularVelocity.set(Math.random() * 5, Math.random() * 5, Math.random() * 5);
+
+                removeSlingshotVisuals();
+
+                triesLeft--;
+                updateTriesDisplay();
+                if (triesLeft <= 0) {
+                    gameOver = true;
+                    gameOverMessage.style.display = 'block';
+                }
+            } else if (event.button === 2) {
+                isRotatingCamera = false;
+            }
+        }
+
+        function removeSlingshotVisuals() {
+            if (slingshotLine) {
+                scene.remove(slingshotLine);
+                slingshotLine = null;
+            }
+            if (aimingArrow) {
+                scene.remove(aimingArrow);
+                aimingArrow = null;
+            }
+            if (slingshotBand1) {
+                scene.remove(slingshotBand1);
+                slingshotBand1 = null;
+            }
+            if (slingshotBand2) {
+                scene.remove(slingshotBand2);
+                slingshotBand2 = null;
+            }
+        }
+
+        window.addEventListener('mousedown', onMouseDown);
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+        window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // --- Projectile (Angry Bird with Smiley Face) ---
+        function createSmileyTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+
+            context.beginPath();
+            context.arc(64, 64, 60, 0, Math.PI * 2, false);
+            context.fillStyle = '#f1c40f';
+            context.fill();
+            context.lineWidth = 2;
+            context.strokeStyle = '#000000';
+            context.stroke();
+
+            context.beginPath();
+            context.arc(40, 50, 8, 0, Math.PI * 2, false);
+            context.arc(88, 50, 8, 0, Math.PI * 2, false);
+            context.fillStyle = '#000000';
+            context.fill();
+
+            context.beginPath();
+            context.arc(64, 80, 30, 0, Math.PI, false);
+            context.lineWidth = 5;
+            context.strokeStyle = '#000000';
+            context.stroke();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const smileyTexture = createSmileyTexture();
+
+        function createBird() {
+            const size = params.birdSize;
+            const geometry = new THREE.SphereGeometry(size, 32, 32);
+            const material = new THREE.MeshStandardMaterial({
+                map: smileyTexture,
+                roughness: 0.6,
+                metalness: 0.2
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            const shape = new CANNON.Sphere(size);
+            const mass = 15;
+            const body = new CANNON.Body({ mass, shape, material: defaultMaterial });
+            body.position.copy(slingshotOrigin);
+            body.linearDamping = 0.01;
+            body.angularDamping = 0.01;
+            world.addBody(body);
+
+            return { mesh, body, type: 'bird' };
+        }
+
+        // --- Pre-built Structures ---
+        const buildingBlocks = [];
+        const balloons = []; // Array to hold balloon objects
+
+        function addBlock(x, y, z, width, height, depth, mass) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const color = new THREE.Color().setHSL(
+                Math.random(), 0.7, 0.5
+            );
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                roughness: 0.7,
+                metalness: 0.3,
+                wireframe: false
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            const shape = new CANNON.Box(new CANNON.Vec3(width / 2, height / 2, depth / 2));
+            const body = new CANNON.Body({ mass: mass, shape, material: defaultMaterial });
+            body.position.copy(mesh.position);
+            body.linearDamping = 0.05;
+            body.angularDamping = 0.05;
+            body.allowSleep = true;
+            body.sleepState = CANNON.Body.SLEEPING;
+            world.addBody(body);
+
+            buildingBlocks.push({ mesh, body, initialPosition: new CANNON.Vec3(x, y, z), scored: false });
+        }
+
+        function createStandardBuilding(positionOffset) {
+            const buildingWidth = 5;
+            const buildingHeight = 3;
+            const buildingDepth = 2;
+            const blockSize = params.buildingBlockSize;
+            const blockOffset = 0.1;
+
+            const startX = positionOffset.x - (buildingWidth * (blockSize + blockOffset)) / 2;
+            const startZ = positionOffset.z - (buildingDepth * (blockSize + blockOffset)) / 2;
+            const startY = groundBody.position.y + blockSize / 2 + 0.1;
+
+            for (let y = 0; y < buildingHeight; y++) {
+                for (let z = 0; z < buildingDepth; z++) {
+                    for (let x = 0; x < buildingWidth; x++) {
+                        addBlock(
+                            startX + x * (blockSize + blockOffset) + blockSize / 2,
+                            startY + y * (blockSize + blockOffset),
+                            startZ + z * (blockSize + blockOffset) + blockSize / 2,
+                            blockSize, blockSize, blockSize,
+                            params.blockMass
+                        );
+                    }
+                }
+            }
+        }
+
+        function createTower(positionOffset, height, baseWidth, isHuge = false) {
+            const blockSize = isHuge ? params.towerBlockSize : params.buildingBlockSize;
+            const blockMass = isHuge ? params.towerBlockMass : params.blockMass;
+            const blockOffset = 0.1;
+
+            const startX = positionOffset.x - (baseWidth * (blockSize + blockOffset)) / 2;
+            const startZ = positionOffset.z - (baseWidth * (blockSize + blockOffset)) / 2;
+            const startY = groundBody.position.y + blockSize / 2 + 0.1;
+
+            for (let y = 0; y < height; y++) {
+                for (let z = 0; z < baseWidth; z++) {
+                    for (let x = 0; x < baseWidth; x++) {
+                        addBlock(
+                            startX + x * (blockSize + blockOffset) + blockSize / 2,
+                            startY + y * (blockSize + blockOffset),
+                            startZ + z * (blockSize + blockOffset) + blockSize / 2,
+                            blockSize, blockSize, blockSize,
+                            blockMass
+                        );
+                    }
+                }
+            }
+        }
+
+        function createLongTallTower(positionOffset, numBlocks = 1) {
+            const blockSize = params.longTallBlockSize;
+            const blockMass = params.towerBlockMass;
+            const blockOffset = 0.1;
+
+            for (let i = 0; i < numBlocks; i++) {
+                addBlock(
+                    positionOffset.x,
+                    groundBody.position.y + blockSize.height / 2 + blockOffset + (i * (blockSize.height + blockOffset)),
+                    positionOffset.z,
+                    blockSize.width,
+                    blockSize.height,
+                    blockSize.depth,
+                    blockMass
+                );
+            }
+        }
+
+        function createLevelStructure(level) {
+            // Clear existing blocks
+            buildingBlocks.forEach(obj => {
+                scene.remove(obj.mesh);
+                world.removeBody(obj.body);
+            });
+            buildingBlocks.length = 0;
+
+            // Define structures based on level
+            switch (level) {
+                case 1:
+                    createStandardBuilding(new THREE.Vector3(0, 0, 0));
+                    createStandardBuilding(new THREE.Vector3(50, 0, -20));
+                    createTower(new THREE.Vector3(-50, 0, -20), 5, 2, true);
+                    let towerSpacing1 = 20;
+                    let towerStartX1 = -100;
+                    let towerZ1 = -70;
+                    for (let i = 0; i < 15; i++) {
+                        createLongTallTower(new THREE.Vector3(towerStartX1 + i * towerSpacing1, 0, towerZ1), 1);
+                    }
+                    let towerSpacing2 = 20;
+                    let towerStartX2 = -120;
+                    let towerZ2 = -100;
+                    for (let i = 0; i < 20; i++) {
+                        createLongTallTower(new THREE.Vector3(towerStartX2 + i * towerSpacing2, 0, towerZ2), 2);
+                    }
+                    break;
+                case 2:
+                    // A wall of blocks
+                    const wallBlockSize = params.buildingBlockSize;
+                    const wallOffset = 0.1;
+                    const wallWidth = 10;
+                    const wallHeight = 5;
+                    const wallDepth = 1;
+                    for (let y = 0; y < wallHeight; y++) {
+                        for (let x = 0; x < wallWidth; x++) {
+                            addBlock(
+                                (x - wallWidth / 2) * (wallBlockSize + wallOffset),
+                                groundBody.position.y + wallBlockSize / 2 + y * (wallBlockSize + wallOffset),
+                                -30,
+                                wallBlockSize, wallBlockSize, wallBlockSize,
+                                params.blockMass
+                            );
+                        }
+                    }
+                    break;
+                case 3:
+                    // A pyramid
+                    const pyramidBlockSize = params.buildingBlockSize * 1.2;
+                    const pyramidOffset = 0.2;
+                    const pyramidLevels = 4;
+                    for (let level = 0; level < pyramidLevels; level++) {
+                        const blocksInRow = pyramidLevels - level;
+                        const startX = -(blocksInRow * (pyramidBlockSize + pyramidOffset)) / 2;
+                        const startY = groundBody.position.y + pyramidBlockSize / 2 + level * (pyramidBlockSize + pyramidOffset);
+                        for (let x = 0; x < blocksInRow; x++) {
+                            for (let z = 0; z < blocksInRow; z++) {
+                                addBlock(
+                                    startX + x * (pyramidBlockSize + pyramidOffset) + pyramidBlockSize / 2,
+                                    startY,
+                                    (z - blocksInRow / 2) * (pyramidBlockSize + pyramidOffset),
+                                    pyramidBlockSize, pyramidBlockSize, pyramidBlockSize,
+                                    params.blockMass * 1.5
+                                );
+                            }
+                        }
+                    }
+                    break;
+                case 24:
+                    // End game level - no blocks, just message and balloons
+                    break;
+                default:
+                    // Generic level for levels 4-23
+                    const numGenericTowers = Math.floor(Math.random() * 5) + 5; // 5 to 9 towers
+                    const genericTowerHeight = Math.floor(Math.random() * 3) + 3; // 3 to 5 blocks high
+                    const genericSpacing = 30;
+                    const genericStartX = -(numGenericTowers / 2) * genericSpacing;
+                    for (let i = 0; i < numGenericTowers; i++) {
+                        createTower(new THREE.Vector3(genericStartX + i * genericSpacing, 0, -50), genericTowerHeight, 2);
+                    }
+                    createStandardBuilding(new THREE.Vector3(Math.random() * 80 - 40, 0, Math.random() * 40 - 20));
+                    break;
+            }
+        }
+
+        function loadNextLevel() {
+            if (currentLevel < params.maxLevels) {
+                currentLevel++;
+                blocksKnockedDown = 0;
+                triesLeft = params.maxTries;
+                updateScoreDisplay();
+                updateTriesDisplay();
+                updateLevelDisplay();
+                createLevelStructure(currentLevel);
+            } else if (currentLevel === params.maxLevels) {
+                endGame();
+            }
+        }
+
+        function endGame() {
+            gameOver = true;
+            // Hide game UI
+            document.getElementById('game-info').style.display = 'none';
+            document.getElementById('score-display').style.display = 'none';
+            document.getElementById('tries-display').style.display = 'none';
+            document.getElementById('level-display').style.display = 'none';
+            document.querySelector('.control-panel').style.display = 'none';
+            document.getElementById('controls-info').style.display = 'none';
+            gameOverMessage.style.display = 'none'; // Ensure game over message is hidden
+
+            endGameMessage.innerHTML = "You indeed, are a scholar and a gentleman,<br>now gtfooh!";
+            endGameMessage.style.display = 'block';
+
+            // Create balloons
+            for (let i = 0; i < 30; i++) {
+                createBalloon();
+            }
+        }
+
+        // --- Balloon Creation ---
+        function createBalloonTexture(color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+
+            // Balloon body (oval shape)
+            context.beginPath();
+            context.ellipse(64, 50, 40, 60, 0, 0, Math.PI * 2);
+            context.fillStyle = color;
+            context.fill();
+            context.strokeStyle = 'black';
+            context.lineWidth = 2;
+            context.stroke();
+
+            // Balloon knot (triangle)
+            context.beginPath();
+            context.moveTo(64, 110);
+            context.lineTo(59, 118);
+            context.lineTo(69, 118);
+            context.closePath();
+            context.fillStyle = color;
+            context.fill();
+            context.strokeStyle = 'black';
+            context.lineWidth = 1;
+            context.stroke();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createBalloon() {
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            const balloonTexture = createBalloonTexture(randomColor);
+
+            const geometry = new THREE.SphereGeometry(6, 32, 32); // Slightly larger sphere
+            const material = new THREE.MeshStandardMaterial({
+                map: balloonTexture,
+                transparent: true,
+                opacity: 0.9,
+                roughness: 0.5,
+                metalness: 0.1
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(Math.random() * 100 - 50, groundBody.position.y + 10, Math.random() * 100 - 50); // Random start position
+            scene.add(mesh);
+
+            const shape = new CANNON.Sphere(6);
+            const body = new CANNON.Body({ mass: 0.1, shape, material: defaultMaterial }); // Very light mass
+            body.position.copy(mesh.position);
+            body.linearDamping = 0.9; // High damping to simulate air resistance
+            body.angularDamping = 0.9;
+            world.addBody(body);
+
+            balloons.push({ mesh, body });
+        }
+
+
+        // Function to update slingshot position and related visuals
+        function updateSlingshotPosition() {
+            slingshotOrigin.set(params.slingshotPosX, params.slingshotPosY, params.slingshotPosZ);
+            slingshotPost1.set(params.slingshotPosX - 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
+            slingshotPost2.set(params.slingshotPosX + 5, params.slingshotPosY + 15, params.slingshotPosZ - 2);
+
+            if (currentBird) {
+                scene.remove(currentBird.mesh);
+                world.removeBody(currentBird.body);
+                currentBird = null;
+                removeSlingshotVisuals();
+                isAiming = false;
+            }
+        }
+
+        // --- Score System ---
+        function updateScoreDisplay() {
+            document.getElementById('score-display').textContent = `Blocks Down: ${blocksKnockedDown}`;
+        }
+
+        function updateTriesDisplay() {
+            document.getElementById('tries-display').textContent = `Tries Left: ${triesLeft}`;
+        }
+
+        function updateLevelDisplay() {
+            document.getElementById('level-display').textContent = `Level: ${currentLevel}`;
+        }
+
+        function checkKnockedDownBlocks() {
+            buildingBlocks.forEach(block => {
+                if (!block.scored && block.body.sleepState !== CANNON.Body.SLEEPING) {
+                    const displacementThreshold = block.mesh.geometry.parameters.width * 1.5;
+
+                    const distance = block.body.position.distanceTo(block.initialPosition);
+
+                    if (distance > displacementThreshold) {
+                        blocksKnockedDown++;
+                        block.scored = true;
+                        updateScoreDisplay();
+                        block.mesh.material.color.set(0x2ecc71);
+                    }
+                }
+            });
+
+            // Check for level progression
+            if (blocksKnockedDown >= params.blocksToNextLevel && currentLevel < params.maxLevels) {
+                loadNextLevel();
+            } else if (blocksKnockedDown >= params.blocksToNextLevel && currentLevel === params.maxLevels) {
+                endGame();
+            }
+        }
+
+        // --- Helpers ---
+        function resetGame() {
+            if (currentBird) {
+                scene.remove(currentBird.mesh);
+                world.removeBody(currentBird.body);
+                currentBird = null;
+            }
+            removeSlingshotVisuals();
+
+            // Clear all balloons if present
+            balloons.forEach(balloon => {
+                scene.remove(balloon.mesh);
+                world.removeBody(balloon.body);
+            });
+            balloons.length = 0;
+
+            currentLevel = 1;
+            blocksKnockedDown = 0;
+            triesLeft = params.maxTries;
+            gameOver = false;
+            gameOverMessage.style.display = 'none';
+            endGameMessage.style.display = 'none'; // Hide end game message
+            document.getElementById('game-info').style.display = 'block'; // Show game UI
+            document.getElementById('score-display').style.display = 'block';
+            document.getElementById('tries-display').style.display = 'block';
+            document.getElementById('level-display').style.display = 'block';
+            document.querySelector('.control-panel').style.display = 'block';
+            document.getElementById('controls-info').style.display = 'block';
+
+
+            createLevelStructure(currentLevel); // Start game at level 1
+            updateScoreDisplay();
+            updateTriesDisplay();
+            updateLevelDisplay();
+        }
+
+        // --- UI Controls (simplified) ---
+        document.getElementById('gravity').addEventListener('input', (e) => {
+            params.gravity = parseFloat(e.target.value);
+            document.getElementById('gravity-value').textContent = params.gravity;
+            world.gravity.set(0, -params.gravity, 0);
+        });
+
+        document.getElementById('slingshotPosX').addEventListener('input', (e) => {
+            params.slingshotPosX = parseFloat(e.target.value);
+            document.getElementById('slingshotPosX-value').textContent = params.slingshotPosX;
+            updateSlingshotPosition();
+        });
+        document.getElementById('slingshotPosY').addEventListener('input', (e) => {
+            params.slingshotPosY = parseFloat(e.target.value);
+            document.getElementById('slingshotPosY-value').textContent = params.slingshotPosY;
+            updateSlingshotPosition();
+        });
+        document.getElementById('slingshotPosZ').addEventListener('input', (e) => {
+            params.slingshotPosZ = parseFloat(e.target.value);
+            document.getElementById('slingshotPosZ-value').textContent = params.slingshotPosZ;
+            updateSlingshotPosition();
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', resetGame);
+
+        setTimeout(() => {
+            document.getElementById('game-info').style.opacity = '0';
+        }, 5000);
+
+        // --- Animation Loop ---
+        let lastTime;
+        const fixedTimeStep = 1 / 60;
+        let accumulator = 0;
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            if (lastTime !== undefined) {
+                const deltaTime = (time - lastTime) / 1000;
+                accumulator += deltaTime;
+
+                while (accumulator >= fixedTimeStep) {
+                    world.step(fixedTimeStep);
+                    accumulator -= fixedTimeStep;
+                }
+            }
+            lastTime = time;
+
+            const moveVector = new THREE.Vector3();
+            if (keys.w) moveVector.z -= params.cameraMoveSpeed;
+            if (keys.s) moveVector.z += params.cameraMoveSpeed;
+            if (keys.a) moveVector.x -= params.cameraMoveSpeed;
+            if (keys.d) moveVector.x += params.cameraMoveSpeed;
+
+            moveVector.applyQuaternion(camera.quaternion);
+            camera.position.add(moveVector);
+
+            if (currentBird) {
+                currentBird.mesh.position.copy(currentBird.body.position);
+                currentBird.mesh.quaternion.copy(currentBird.body.quaternion);
+
+                if (currentBird.body.position.y < groundBody.position.y - 10 ||
+                    currentBird.body.position.distanceTo(slingshotOrigin) > 100 ||
+                    (currentBird.body.velocity.length() < 0.1 && currentBird.body.sleepState === CANNON.Body.SLEEPING && currentBird.body.position.distanceTo(slingshotOrigin) > params.birdSize * 2)
+                    ) {
+                    if (!currentBird.settledTimer) {
+                        currentBird.settledTimer = setTimeout(() => {
+                            scene.remove(currentBird.mesh);
+                            world.removeBody(currentBird.body);
+                            currentBird = null;
+                        }, 500);
+                    }
+                }
+            }
+
+            buildingBlocks.forEach(obj => {
+                obj.mesh.position.copy(obj.body.position);
+                obj.mesh.quaternion.copy(obj.body.quaternion);
+            });
+
+            // Animate balloons
+            balloons.forEach(balloon => {
+                balloon.body.applyForce(new CANNON.Vec3(0, 0.5, 0), balloon.body.position); // Upward force
+                balloon.mesh.position.copy(balloon.body.position);
+                balloon.mesh.quaternion.copy(balloon.body.quaternion);
+            });
+
+            checkKnockedDownBlocks();
+            animateLavaLamp();
+            renderer.render(scene, camera);
+        }
+
+        resetGame(); // Initialize the game on load to level 1 and create structures
+        requestAnimationFrame(animate);
+
+        // --- Window Resize Handler ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
